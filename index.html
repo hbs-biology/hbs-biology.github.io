@@ -3,9 +3,11 @@
 <style>
 :root{--bg:#06201d;--ink:#e6f2e8;--dim:#8fb3a6;--line:#2a5a4f;--acc:#f5d36b;color-scheme:dark;box-sizing:border-box}
 html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font:14px/1.4 "Bricolage Grotesque",system-ui,sans-serif;overflow:hidden}
+body{background-image:radial-gradient(circle at 50% 50%,#0b3a33,#041512 90%)}
 canvas{position:fixed;inset:0;width:100%;height:100%;touch-action:none}
 #top{position:fixed;left:12px;right:12px;top:calc(env(safe-area-inset-top,0px) + 10px);pointer-events:none}
 #lv{font-size:21px;font-weight:600;letter-spacing:-.01em}#cap{color:var(--dim);max-width:560px;font-size:13px}
+#tip{font-size:11px;color:#6f9a8c;margin-top:2px}
 #bot{position:fixed;left:0;right:0;bottom:0;padding:18px 12px calc(env(safe-area-inset-bottom,0px) + 8px);background:linear-gradient(transparent,var(--bg) 22%)}
 #chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px}
 #chips button,#tg{flex:none;background:#0d3a33;color:var(--ink);border:1px solid var(--line);border-radius:14px;padding:5px 11px;font:inherit;font-size:12px}
@@ -20,9 +22,9 @@ canvas{position:fixed;inset:0;width:100%;height:100%;touch-action:none}
 button:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 </style></head><body>
 <canvas id="c"></canvas>
-<div id="top"><div id="lv"></div><div id="cap"></div></div>
+<div id="top"><div id="lv"></div><div id="cap"></div><div id="tip">Ziehen: bewegen · Pinch oder Mausrad: zoomen · Chips: direkt zum Element</div></div>
 <div id="bot"><div id="chips"></div>
-<div id="row"><input id="zs" type="range" min="0" max="5" step="0.001" value="0" aria-label="Zoom"><button id="tg">Regler</button></div>
+<div id="row"><input id="zs" type="range" min="0" max="1" step="0.0005" value="0" aria-label="Zoom"><button id="tg">Regler</button></div>
 <div id="p">
 <div id="hint"></div>
 <div id="ms"><div class="m">Protonengradient<i id="m0"></i></div><div class="m">ATP-Bildung<i id="m1"></i></div><div class="m">NADPH-Bildung<i id="m2"></i></div><div class="m">O₂-Freisetzung<i id="m3"></i></div></div>
@@ -39,13 +41,16 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-of
 const $=i=>document.getElementById(i),cv=$('c'),x=cv.getContext('2d'),R=4,TAU=6.2832;
 const S={light:70,lam:600,white:true,water:1,nadp:1,cyc:false,dcmu:false,unc:false};
 const M={H:0,jl:0,jc:0,atp:0};
-const LV=[['Chloroplast','Zwei Hüllmembranen umschließen das Stroma. Darin liegen Grana: Stapel aus Thylakoiden. Hier läuft die lichtabhängige Reaktion ab.'],
-['Granum','Die Thylakoide sind flache Säckchen. Ihr Innenraum (Lumen) sammelt Protonen, außen liegt das Stroma.'],
-['Thylakoidmembran','Vier Komplexe: PS II, Cyt b₆f, PS I und die ATP-Synthase. Elektronen (gelb) fließen von H₂O zu NADP⁺, Protonen (rot) bauen den Gradienten auf.'],
-['Photosystem II','Antennenpigmente leiten die Energie der Photonen zum Reaktionszentrum P680. Es gibt Elektronen ab, die Fotolyse des Wassers ersetzt sie.'],
-['Chlorophyll a','Der Porphyrinring mit Mg im Zentrum hat ein ausgedehntes π-Elektronensystem. Es absorbiert blaues und rotes Licht. Der Phytolschwanz verankert das Molekül.'],
+const LV=[['Chloroplast','Zwei Hüllmembranen umschließen das Stroma. Darin liegen Grana, Stapel aus Thylakoiden. Zoome auf ein Granum.'],
+['Granum','Flache Säckchen (Thylakoide) mit Lumen innen und Stroma außen. Zoome auf die Membran einer Scheibe.'],
+['Thylakoidmembran','Lipiddoppelschicht mit PS II, Plastochinon-Pool, Cyt b₆f, PS I, FNR und ATP-Synthase. Elektronen (gelb) fließen von H₂O zu NADP⁺, Protonen (rot) bauen den Gradienten auf.'],
+['Photosystem II','Antennenpigmente leiten die Energie zum Reaktionszentrum P680. Die Fotolyse am Mn-Cluster ersetzt dessen Elektronen. Zoome auf ein Chlorophyll.'],
+['Cytochrom-b₆f-Komplex','Plastochinol gibt Elektronen ab. Dabei werden Protonen ins Lumen freigesetzt, die Elektronen gehen weiter zum Plastocyanin.'],
+['Photosystem I','P700 wird durch Licht angeregt und gibt Elektronen an Ferredoxin ab. Plastocyanin füllt die Elektronenlücke wieder auf.'],
+['ATP-Synthase','Protonen strömen durch F₀ ins Stroma und drehen den Rotor. Die Drehung des γ-Stiels treibt in F₁ die ATP-Bildung an.'],
+['Chlorophyll a','Porphyrinring mit Mg im Zentrum, ausgedehntes π-Elektronensystem, Phytolschwanz als Anker in der Membran.'],
 ['Atomare Ebene','Ein Photon hebt ein Elektron auf ein höheres Energieniveau. Von dort kann es an den Akzeptor abgegeben werden (vereinfachtes Bohr-Modell).']];
-let W,H,DPR,d=0,T=0,cu=1,lt=0,cl=-1,ub=0,ca={};
+let W,H,DPR,cu=1,fl=1,lab=1,lt=0,cl=-1,Z=0,camx=0,camy=0,CY=0,Zmin=1,Zmax=1,tw=null,best=null;
 function rs(){DPR=devicePixelRatio||1;W=innerWidth;H=innerHeight;cv.width=W*DPR;cv.height=H*DPR}
 addEventListener('resize',rs);rs();
 const g=(l,m,s)=>Math.exp(-(((l-m)/s)**2));
@@ -53,23 +58,23 @@ const absF=l=>.1+.9*Math.max(g(l,433,20),g(l,680,17),.8*g(l,458,14),.65*g(l,645,
 const col=()=>S.white?'#fff':`hsl(${270-(S.lam-400)/300*270},95%,62%)`;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 // UI
-const chips=$('chips');LV.forEach((l,i)=>{const b=document.createElement('button');b.textContent=l[0];b.onclick=()=>{T=i};chips.appendChild(b)});
+const chips=$('chips');LV.forEach((l,i)=>{const b=document.createElement('button');b.textContent=l[0].replace('-Komplex','');b.onclick=()=>go(i);chips.appendChild(b)});
 $('tg').onclick=()=>$('p').classList.toggle('o');
-const zs=$('zs');zs.oninput=()=>{T=+zs.value};
+const zs=$('zs');zs.oninput=()=>{tw=null;Z=Math.exp(Math.log(Zmin)+(+zs.value)*Math.log(Zmax/Zmin))};
 function hint(){const ab=S.white?.55:absF(S.lam);return S.dcmu?'DCMU blockiert die Weitergabe von PS II an Plastochinon: kein O₂, kaum Gradient, kaum ATP.':S.unc?'Der Entkoppler macht die Membran für H⁺ durchlässig: Der Gradient bricht zusammen, die ATP-Synthase steht fast still.':S.water<.1?'Ohne Wasser fehlt der Ersatz für die Elektronen von P680: Die Elektronentransportkette kommt zum Erliegen.':S.light<5?'Ohne Licht werden keine Elektronen angeregt.':S.nadp<.3?(S.cyc?'NADP⁺ ist knapp, doch der zyklische Fluss pumpt weiter Protonen: ATP entsteht ohne NADPH und O₂.':'NADP⁺ ist knapp: Das Ferredoxin kann seine Elektronen nicht loswerden, der Fluss staut sich.'):S.cyc?'Zyklischer Fluss: Elektronen laufen von PS I zurück zum Cyt b₆f. Es entsteht nur ATP, kein NADPH, kein O₂.':ab<.3?'Grünes Licht wird von Chlorophyll kaum absorbiert, die Reaktion läuft schwach.':'Linearer Elektronentransport: Licht, H₂O, NADP⁺ und ADP+Pᵢ sind ausreichend vorhanden.'}
 function sync(){$('lam').disabled=S.white;$('nm').textContent=S.white?'':S.lam+' nm';$('hint').textContent=hint()}
 document.querySelectorAll('[data-k]').forEach(e=>{const k=e.dataset.k;if(e.type=='checkbox')e.checked=S[k];else e.value=S[k];e.oninput=()=>{S[k]=e.type=='checkbox'?e.checked:+e.value;sync()}});sync();
-function setD(v){d=T=clamp(v,0,5)}
-cv.addEventListener('wheel',e=>{e.preventDefault();T=clamp(T-e.deltaY*.002,0,5)},{passive:false});
+function zoomAt(px,py,nz){nz=clamp(nz,Zmin,Zmax);const wx=camx+(px-W/2)/Z,wy=camy+(py-CY)/Z;Z=nz;camx=wx-(px-W/2)/Z;camy=wy-(py-CY)/Z}
+cv.addEventListener('wheel',e=>{e.preventDefault();tw=null;zoomAt(e.clientX,e.clientY,Z*Math.exp(-e.deltaY*.0016))},{passive:false});
 const pt=new Map();let pd=0;
-cv.onpointerdown=e=>{pt.set(e.pointerId,{x:e.clientX,y:e.clientY});cv.setPointerCapture(e.pointerId)};
+cv.onpointerdown=e=>{pt.set(e.pointerId,{x:e.clientX,y:e.clientY});cv.setPointerCapture(e.pointerId);tw=null};
 cv.onpointermove=e=>{const o=pt.get(e.pointerId);if(!o)return;const n={x:e.clientX,y:e.clientY};
- if(pt.size==2){pt.set(e.pointerId,n);const[a,b]=[...pt.values()],D=Math.hypot(a.x-b.x,a.y-b.y);if(pd)setD(d+Math.log(D/pd)/Math.log(R)*1.3);pd=D}
- else{setD(d+(o.y-n.y)*.005);pt.set(e.pointerId,n)}};
+ if(pt.size==2){pt.set(e.pointerId,n);const[a,b]=[...pt.values()],D=Math.hypot(a.x-b.x,a.y-b.y);if(pd)zoomAt((a.x+b.x)/2,(a.y+b.y)/2,Z*D/pd);pd=D}
+ else{camx-=(n.x-o.x)/Z;camy-=(n.y-o.y)/Z;pt.set(e.pointerId,n)}};
 cv.onpointerup=cv.onpointercancel=e=>{pt.delete(e.pointerId);pd=0};
 // Zeichenhelfer
 const ci=(X,Y,r,f,s,w)=>{x.beginPath();x.arc(X,Y,r,0,TAU);if(f){x.fillStyle=f;x.fill()}if(s){x.strokeStyle=s;x.lineWidth=(w||1)/cu;x.stroke()}};
-const tx=(t,X,Y,c,z,al)=>{x.fillStyle=c||'#e6f2e8';x.font=(z||12)/cu+'px "Bricolage Grotesque",system-ui,sans-serif';x.textAlign=al||'center';x.fillText(t,X,Y)};
+const tx=(t,X,Y,c,z,al)=>{x.save();x.translate(X,Y);x.scale(1/cu,fl/cu);x.fillStyle=c||'#e6f2e8';x.font=(z||12)+'px "Bricolage Grotesque",system-ui,sans-serif';x.textAlign=al||'center';x.fillText(t,0,0);x.restore()};
 const rr=(X,Y,w,h,r,f,s,lw)=>{x.beginPath();x.roundRect(X,Y,w,h,r);if(f){x.fillStyle=f;x.fill()}if(s){x.strokeStyle=s;x.lineWidth=(lw||1)/cu;x.stroke()}};
 const ln=(a,b,c,e,s,w)=>{x.beginPath();x.moveTo(a,b);x.lineTo(c,e);x.strokeStyle=s;x.lineWidth=(w||1)/cu;x.stroke()};
 function photon(X,Y,len,a){x.beginPath();for(let k=0;k<=len;k+=3){const px=X+Math.sin(k*.9)*3,py=Y+k;k?x.lineTo(px,py):x.moveTo(px,py)}x.strokeStyle=col();x.globalAlpha=a;x.lineWidth=2/cu;x.stroke();x.globalAlpha=1}
@@ -98,53 +103,81 @@ function sim(dt){
  PH=PH.filter(p=>{p.y+=330*dt;if(p.y>-42){if(Math.random()<ab)FL.push({k:'*',x:p.x,y:-42,vx:0,vy:0,l:.25});return false}return true});
  const N=Math.round(10+M.H*80);while(LP.length<N)LP.push({x:rnd(-380,380),y:rnd(25,240)});while(LP.length>N)LP.splice(Math.random()*LP.length|0,1);
  LP.forEach(p=>{p.x=clamp(p.x+rnd(-1,1)*40*dt,-390,390);p.y=clamp(p.y+rnd(-1,1)*40*dt+(p.y<20?60*dt:0),20,250)});
- TP=TP.filter(p=>{p.t+=dt/.8;if(p.t>=1){FL.push({k:'ATP',x:p.x,y:-70,vx:25,vy:-50,l:2});return false}return true});
+ TP=TP.filter(p=>{p.t+=dt/.8;if(p.t>=1){FL.push({k:'ATP',x:p.x,y:-82,vx:25,vy:-50,l:2});return false}return true});
  FL=FL.filter(f=>{f.x+=f.vx*dt;f.y+=f.vy*dt;f.l-=dt;return f.l>0});
  if(Math.random()<ph*6*dt)PU.push({a:Math.random()*TAU,t:0});
  PU=PU.filter(p=>{p.t+=dt/.7;if(p.t>=1){pz=1;return false}return true});pz=Math.max(0,pz-dt*3);
  M.o2=M.jl;
 }
 // Ebenen
-function lvl(i,dw,dh,fn){const k=Math.abs(d-i);if(k>=1)return;const tb=$('top').getBoundingClientRect().bottom,bb=$('bot').getBoundingClientRect().top,ah=Math.max(120,bb-tb-30),u=Math.min(W*.96/dw,ah/dh),s=Math.pow(R,d-i);
- x.save();x.globalAlpha=Math.min(1,1.7*(1-k));x.translate(W/2,(tb+bb)/2);cu=s*u;x.scale(cu,cu);fn(i);x.restore()}
 const lum=a=>`rgba(150,100,25,${.2+.5*M.H*(a||1)})`;
 function L0(){const t=lt;
  x.beginPath();x.ellipse(0,0,235,150,0,0,TAU);x.fillStyle='#14414d';x.fill();x.strokeStyle='#7fd08a';x.lineWidth=6/cu;x.stroke();
  x.beginPath();x.ellipse(0,0,224,139,0,0,TAU);x.strokeStyle='#5fae7c';x.lineWidth=3/cu;x.stroke();
- const G=[[-120,-30],[-25,45],[70,-45],[135,30],[-65,-85],[20,-5]];
+ const G=GR;
  x.strokeStyle='#3f9b5a';x.lineWidth=3/cu;G.forEach((a,i)=>{const b=G[(i+1)%G.length];x.beginPath();x.moveTo(a[0],a[1]);x.quadraticCurveTo((a[0]+b[0])/2+10,(a[1]+b[1])/2+14,b[0],b[1]);x.stroke()});
  G.forEach(a=>{for(let k=0;k<5;k++)rr(a[0]-28,a[1]-28+k*11,56,8,4,`hsl(${140-M.H*40},45%,${38+M.H*14}%)`,'#9be28a',1)});
  x.beginPath();x.ellipse(170,-80,26,16,.3,0,TAU);x.fillStyle='#d9e3d0';x.fill();tx('Stärke',170,-102,'#8fb3a6',11);
- tx('Hülle (2 Membranen)',0,-168,'#9be28a',12);tx('Stroma',-175,70,'#8fb3a6',12);tx('Granum',-120,-70,'#e6f2e8',12);tx('Stromalamelle',60,30,'#8fb3a6',11);
+ tx('Hülle (2 Membranen)',0,-168,'#9be28a',12);tx('Stroma',-175,70,'#8fb3a6',12);tx('Granum',-150,-64,'#e6f2e8',12);tx('Stromalamelle',-15,92,'#8fb3a6',11);
  for(let k=0;k<6;k++){const yy=((t*70*S.light/100+k*58)%340)-170;photon(-200+k*80,yy-30,16,.7)}
  x.globalAlpha=Math.min(1,M.jl*2);tx('O₂ ↑',255,-40,'#e6f2e8',13);}
 function L1(){
- for(let k=0;k<6;k++){const y=-115+k*46;rr(-150,y-15,300,30,15,lum(),'#9be28a',4);
-  for(let j=0;j<4;j++)rr(-120+j*70,y-19,16,38,6,['#7a5fc2','#4aa3c7','#c25f9a','#e08a3c'][j],null);
-  if(k==2)tx('Lumen',100,y+4,'#f5d36b',13)}
+ rr(-170,-150,340,300,30,'#10404f');
+ for(let k=0;k<6;k++)rr(-150,-130+k*46,300,30,15,lum(),'#9be28a',4);
+ [['#7a5fc2',-18,4.8,4.1],['#4aa3c7',-6,3.4,3.2],['#c25f9a',6,4.2,3.7],['#e0873c',18,2.4,3.6]].forEach(c=>{x.beginPath();for(let k=0;k<6;k++)for(const s of[-15,15])for(const t of TL)x.roundRect(t+c[1]-c[2]/2,-115+k*46+s-c[3]/2,c[2],c[3],1.2);x.fillStyle=c[0];x.fill()});
  LP.slice(0,40).forEach((p,i)=>ci(-130+(i*53)%260,-115+((i*7)%6)*46+Math.sin(lt*2+i)*5,2.5,'#ff7a6b'));
- tx('Stroma',-120,-22+46*0.5,'#8fb3a6',12);tx('Thylakoidmembran',0,-146,'#9be28a',12);tx('Granum = Thylakoidstapel',0,168,'#e6f2e8',12);
+ tx('Lumen',100,-19,'#f5d36b',13);tx('Stroma',-120,3,'#8fb3a6',12);tx('Thylakoidmembran',0,-158,'#9be28a',12);tx('Granum = Thylakoidstapel',0,168,'#e6f2e8',12);
  for(let k=0;k<4;k++)photon(-100+k*70,((lt*90*S.light/100+k*80)%110)-170,16,.6)}
-function L2(){
- rr(-400,-270,800,270,0,'#10404f');rr(-400,0,800,270,0,lum());
- rr(-400,-12,800,24,10,'#2f6f4f','#7fd08a',2);
- tx('Stroma',-390,-250,'#8fb3a6',13,'left');tx('Lumen',-390,255,'#f5d36b',13,'left');
+function L2(){L2t()}
+function atpS(dt){x.save();rr(-18,-12,36,56,6,'#e0873c','#ffc78f',2);rr(-4,-26,8,14,2,'#ffc78f');ci(0,-50,26,'#e0873c','#ffc78f',2);
+ if(dt){for(let k=0;k<6;k++){const a=k*1.0472;ci(Math.cos(a)*14,-50+Math.sin(a)*14,11,k%2?'#f2a35c':'#c9702a','#ffc78f',1)}
+  for(let k=0;k<8;k++){const a=rot+k*.785;ci(Math.cos(a)*13,18,3,'#ffe0a8')}}
+ ln(0,-50,Math.cos(rot)*20,-50+Math.sin(rot)*20,'#fff',dt?4:3);x.restore()}
+function L2t(){const T=lab?tx:()=>0;
+ x.globalCompositeOperation='destination-over';rr(-400,-262,800,262,0,'#10404f');rr(-400,0,800,250,0,lum());x.globalCompositeOperation='source-over';
+ if(cu>.9){x.beginPath();for(let i=-400;i<=400;i+=10){x.moveTo(i+4,-13);x.arc(i,-13,4,0,TAU);x.moveTo(i+4,13);x.arc(i,13,4,0,TAU)}x.fillStyle='#7fd08a';x.fill();
+ x.beginPath();for(let i=-400;i<=400;i+=10){x.moveTo(i,-9);x.lineTo(i,-1);x.moveTo(i,1);x.lineTo(i,9)}x.strokeStyle='#5fae7c';x.lineWidth=1/cu;x.stroke()}
+ else{rr(-400,-17,800,34,0,'#7fd08a');rr(-400,-9,800,18,0,'#5fae7c')}
+ T('Stroma',-390,-240,'#8fb3a6',13,'left');T('Lumen',-390,238,'#f5d36b',13,'left');
  for(let i=0;i<14;i++)ci(-380+i*58+Math.sin(lt+i)*4,-60-((i*37)%150)+Math.cos(lt*.8+i)*4,2.5,'#ff7a6b99');
- LP.forEach(p=>ci(p.x,p.y,2.8,'#ff7a6b'));
- rr(-340,-34,80,68,14,'#7a5fc2','#c6b5ff',2);tx('PS II',-300,-42,'#e6f2e8',12);
- rr(-128,-26,56,54,12,'#4aa3c7','#a5e0f5',2);tx('Cyt b₆f',-100,-34,'#e6f2e8',12);
- rr(65,-30,70,62,14,'#c25f9a','#f0a8d2',2);tx('PS I',100,-38,'#e6f2e8',12);
- rr(280,-12,40,60,6,'#e0873c','#ffc78f',2);ci(300,-52,32,'#e0873c','#ffc78f',2);
- ln(300,-52,300+Math.cos(rot)*30,-52+Math.sin(rot)*30,'#fff',3);tx('ATP-Synthase',300,-100,'#e6f2e8',12);
- ci(-200,-4,8,'#9fe6ff');tx('PQ',-200,-18,'#9fe6ff',11);ci(0,70,9,'#ffd7ef');tx('PC',22,72,'#ffd7ef',11);ci(160,-70,8,'#ffb86b');tx('Fd',178,-72,'#ffb86b',11);
- tx('H₂O → ½ O₂ + 2 H⁺ + 2 e⁻',-300,130,'#e6f2e8',11);ci(-300,100,5,'#9fe6ff');
- tx('NADP⁺ + 2 e⁻ + H⁺ → NADPH',215,-140,'#e6f2e8',11);tx('ADP + Pᵢ',255,-130,'#8fb3a6',10,'left');
- x.setLineDash([4/cu,4/cu]);ln(100,-34,150,-80,'#ffffff55',1);x.setLineDash([]);if(S.cyc)tx('zyklisch',20,-130,'#f5d36b',11);
- PH.forEach(p=>photon(p.x,p.y,18,.9));
- FL.forEach(f=>{if(f.k=='*'){ci(f.x,f.y,22*(1-f.l*3),null,col(),2)}else tx(f.k,f.x,f.y,f.k=='ATP'?'#ffc78f':f.k=='NADPH'?'#ffb86b':'#e6f2e8',f.k=='NADPH'?12:13)});
- TP.forEach(p=>ci(p.x,60-130*p.t,3,'#ff7a6b','#fff',1));
- E.forEach(e=>{const[a,b]=at(e.P,e.s);ci(a,b,4.5,'#ffe45c','#fff8c0',1.5)});
- tx('H⁺-Gradient',-60,215,'#ff9f94',12);}
+ x.beginPath();LP.forEach(p=>{x.moveTo(p.x+2.8,p.y);x.arc(p.x,p.y,2.8,0,TAU)});x.fillStyle='#ff7a6b';x.fill();
+ for(let k=0;k<4;k++)ci(-215+60*Math.sin(lt*.4+k*1.7),k%2?6:-6,4,'#9fe6ff55','#9fe6ff',1);
+ rr(-392,-24,24,48,8,'#3f8f4a','#9be28a',1.5);T('LHC II',-380,-32,'#9be28a',10);rr(139,-22,20,44,8,'#3f8f4a','#9be28a',1.5);
+ rr(-340,-34,80,68,14,'#7a5fc2','#c6b5ff',2);rr(-333,-26,32,52,8,'#6a4fb0');rr(-299,-26,32,52,8,'#8a6fd2');T('D1',-317,3,'#e6defa',10);T('D2',-283,3,'#e6defa',10);
+ rr(-318,34,36,12,6,'#a58be8','#c6b5ff',1.5);ci(-300,42,5,'#e08a3c');T('PS II',-300,-42,'#e6f2e8',12);
+ rr(-128,-26,26,54,10,'#4aa3c7','#a5e0f5',2);rr(-98,-26,26,54,10,'#4aa3c7','#a5e0f5',2);
+ [[-115,-8],[-115,8],[-85,-8],[-85,8]].forEach(a=>ci(a[0],a[1],3,'#d94f4f'));ci(-100,34,8,'#6bbfe0','#a5e0f5',1.5);T('Cyt b₆f',-100,-34,'#e6f2e8',12);
+ rr(65,-30,70,62,14,'#c25f9a','#f0a8d2',2);ci(100,0,6,'#ffffff66');ci(124,-36,9,'#e48fc0','#f0a8d2',1.5);T('PS I',100,-38,'#e6f2e8',12);
+ rr(205,-128,22,20,8,'#e0873c','#ffc78f',1.5);T('FNR',216,-134,'#ffc78f',9);
+ x.save();x.translate(300,0);atpS(0);x.restore();T('ATP-Synthase',300,-92,'#e6f2e8',12);
+ ci(-200,-4,8,'#9fe6ff');T('PQ',-200,-18,'#9fe6ff',11);ci(0,70,9,'#ffd7ef');T('PC',22,72,'#ffd7ef',11);ci(160,-70,8,'#ffb86b');T('Fd',178,-72,'#ffb86b',11);
+ T('H₂O → ½ O₂ + 2 H⁺ + 2 e⁻',-300,130,'#e6f2e8',11);ci(-300,100,5,'#9fe6ff');
+ T('NADP⁺ + 2 e⁻ + H⁺ → NADPH',215,-148,'#e6f2e8',11);T('ADP + Pᵢ',255,-136,'#8fb3a6',10,'left');
+ if(S.cyc)T('zyklisch',20,-130,'#f5d36b',11);
+ x.beginPath();PH.forEach(p=>{for(let k=0;k<=18;k+=3){const px=p.x+Math.sin(k*.9)*3,py=p.y+k;k?x.lineTo(px,py):x.moveTo(px,py)}});x.strokeStyle=col();x.globalAlpha*=.9;x.lineWidth=2/cu;x.stroke();x.globalAlpha/=.9;
+ FL.forEach(f=>{if(f.k=='*'){ci(f.x,f.y,22*(1-f.l*3),null,col(),2)}else T(f.k,f.x,f.y,f.k=='ATP'?'#ffc78f':f.k=='NADPH'?'#ffb86b':'#e6f2e8',f.k=='NADPH'?12:13)});
+ x.beginPath();TP.forEach(p=>{x.moveTo(p.x+3,60-84*p.t);x.arc(p.x,60-84*p.t,3,0,TAU)});x.fillStyle='#ff7a6b';x.fill();x.strokeStyle='#fff';x.lineWidth=1/cu;x.stroke();
+ x.beginPath();E.forEach(e=>{const[a,b]=at(e.P,e.s);x.moveTo(a+4.5,b);x.arc(a,b,4.5,0,TAU)});x.fillStyle='#ffe45c';x.fill();x.strokeStyle='#fff8c0';x.lineWidth=1.5/cu;x.stroke();
+ T('H⁺-Gradient',-60,215,'#ff9f94',12);}
+function L3a(){x.save();x.scale(4,4);cu*=4;x.translate(0,16);
+ rr(-45,-120,90,120,0,'#10404f');rr(-45,0,90,120,0,lum());rr(-45,-12,90,24,6,'#2f6f4f','#7fd08a',1);
+ atpS(1);TP.forEach(p=>ci(p.x-300,60-84*p.t,2,'#ff7a6b','#fff',.5));
+ for(let k=0;k<8;k++)ci(-38+k*11,40+Math.sin(lt+k)*6,1.8,'#ff7a6b');
+ tx('F₁ (α₃β₃)',30,-58,'#ffc78f',10,'left');tx('γ-Stiel dreht',30,-45,'#fff',9,'left');tx('F₀ (c-Ring)',22,22,'#ffc78f',10,'left');tx('H⁺',-24,26,'#ff9f94',10);
+ tx('ADP + Pᵢ → ATP',0,-88,'#e6f2e8',11);tx('Stroma',-42,-108,'#8fb3a6',10,'left');tx('Lumen',-42,110,'#f5d36b',10,'left');x.restore();cu/=4}
+function L3c(){x.save();x.scale(4,4);cu*=4;
+ rr(-45,-60,90,60,0,'#10404f');rr(-45,0,90,60,0,lum());rr(-45,-12,90,24,6,'#2f6f4f','#7fd08a',1);
+ rr(-28,-26,26,54,10,'#4aa3c7','#a5e0f5',1.5);rr(2,-26,26,54,10,'#4aa3c7','#a5e0f5',1.5);
+ [[-15,-8],[-15,8],[15,-8],[15,8]].forEach(a=>ci(a[0],a[1],3,'#d94f4f','#fff',.5));ci(0,34,8,'#6bbfe0','#a5e0f5',1);
+ const r=.4+2*(M.jl+M.jc);for(let k=0;k<3;k++){const q=(lt*r+k/3)%1;ci(-38+q*22,-6+q*14,2,'#9fe6ff');ci(-14+k*14,14+q*34,1.8,`rgba(255,122,107,${1-q})`);ci(15+q*24,12+q*24,2,'#ffe45c')}
+ tx('Cyt b₆f',0,-34,'#e6f2e8',12);tx('Häm',0,-2,'#ffb0a8',9);tx('PQH₂ → PQ',-40,-14,'#9fe6ff',9,'left');tx('H⁺ ins Lumen',0,58,'#ff9f94',10);tx('e⁻ → PC',42,38,'#ffe45c',10);x.restore();cu/=4}
+function L3b(){x.beginPath();x.ellipse(0,0,190,150,0,0,TAU);x.fillStyle='#c25f9a88';x.fill();x.strokeStyle='#f0a8d2';x.lineWidth=3/cu;x.stroke();
+ AN.forEach(a=>ci(a[0],a[1]-10,11,'#2d7a4a','#9be28a',2));
+ PU.forEach(p=>{const a=AN[(p.a*7|0)%12],q=p.t;ci(a[0]*(1-q),(a[1]-10)*(1-q)-10*q,5,col())});
+ ci(0,-10,22+pz*8,pz>0?'#fff':'#ffd7ef','#e6f2e8',2);tx('P700',0,-6,'#06201d',12);
+ ci(120,-120,12,'#ffb86b');tx('Fd',138,-116,'#ffb86b',11,'left');ci(0,135,10,'#ffd7ef');tx('PC (Lumen)',16,139,'#ffd7ef',11,'left');
+ for(let k=0;k<3;k++){const q=(lt*(.3+ph*2)+k/3)%1;ci(120*q,-10-110*q,3.5,'#ffe45c');ci(0,125-q*115,3.5,'#ffe45c')}
+ tx('Antennenchlorophylle (LHC I)',0,-132,'#e6f2e8',11);tx('Licht',-150,-150,col(),12);photon(-150,-140,22,.9)}
 const AN=[...Array(12)].map((_,i)=>[Math.cos(i*.52)*(105+(i%3)*18)*(1+(i%2)*.1),Math.sin(i*.52)*(75+(i%3)*14)]);
 function L3(){
  x.beginPath();x.ellipse(0,0,190,150,0,0,TAU);x.fillStyle='#4d3d8f88';x.fill();x.strokeStyle='#c6b5ff';x.lineWidth=3/cu;x.stroke();
@@ -181,14 +214,47 @@ function L5(){
  const a=lt*(st.s>=2?2:1.5);const X=st.s==3?xx:Math.cos(a)*r,Y=st.s==3?-20*st.t:Math.sin(a)*r;
  ci(X,Y,6,st.s>=2?'#ffe45c':'#9fe6ff','#fff',1.5);if(st.s>=2)tx(st.s==3?'e⁻ → Akzeptor':'e⁻*',X,Y-12,'#ffe45c',11);
  tx('Elektron: Grundzustand → angeregter Zustand',0,150,'#e6f2e8',11)}
-// Hauptschleife
-function fr(n){const t=n/1000,dt=Math.min(.05,t-lt||.016);lt=t;
- d+=(T-d)*Math.min(1,dt*7);if(document.activeElement!==zs)zs.value=d;
- const li=clamp(Math.round(d),0,5);if(li!=cl){cl=li;$('lv').textContent=LV[li][0];$('cap').textContent=LV[li][1];[...chips.children].forEach((b,i)=>b.classList.toggle('on',i==li))}
+
+const GR=[[-150,-30],[-70,45],[-60,-75],[25,-10],[110,-60],[120,45]];
+const TL=[-3,-2,-1,0,1,2].map(t=>t*48+24),K1=[];
+for(let k=0;k<6;k++)for(const s of[-1,1])for(const t of TL)K1.push([2,t,-115+k*46+s*15,.06,-s]);
+const K2=[[3,-300,0,.2],[4,-100,0,.25],[5,100,0,.2],[6,300,-16,.25]],K3=AN.map(a=>[7,a[0],a[1]-10,.11]);
+const N=[{f:L0,w:500,h:340,k:GR.map(g=>[1,g[0],g[1],.19])},
+{f:L1,w:340,h:300,k:K1},
+{f:L2,w:800,h:512,k:K2},
+{f:L3,w:400,h:330,k:K3},
+{f:L3c,w:300,h:300},
+{f:L3b,w:400,h:330,k:K3},
+{f:L3a,w:320,h:560},
+{f:L4,w:360,h:360,k:[[8,0,0,.17]]},
+{f:L5,w:320,h:320}];
+const PL=[];
+function place(id){if(PL[id])return PL[id];const P=[[0],[0,1],[0,1,2],[0,1,2,3],[0,1,2,4],[0,1,2,5],[0,1,2,6],[0,1,2,3,7],[0,1,2,3,7,8]][id];let o={x:0,y:0,sc:1,f:1};
+ for(let i=1;i<P.length;i++){const c=N[P[i-1]].k.filter(c=>c[0]==P[i]&&(c[4]||1)>0).sort((a,b)=>a[1]*a[1]+a[2]*a[2]-b[1]*b[1]-b[2]*b[2])[0];o={x:o.x+o.sc*c[1],y:o.y+o.sc*o.f*c[2],sc:o.sc*c[3],f:o.f*(c[4]||1)}}return PL[id]=o}
+function go(id){const p=place(id),z1=N[id].u/p.sc;tw={z0:Z,x0:camx,y0:camy,x1:p.x,y1:p.y,z1,t:0,D:clamp(1.2+Math.abs(Math.log(z1/Z))*.4,1.2,4.5)}}
+function layout(){const tb=$('top').getBoundingClientRect().bottom,bb=$('bot').getBoundingClientRect().top,ah=Math.max(120,bb-tb-30);CY=(tb+bb)/2;
+ N.forEach(n=>n.u=Math.min(W*.96/(n.fw||n.w),ah/n.h));Zmin=N[0].u*.85;Zmax=N[8].u/place(8).sc*1.5}
+const on=(c,ox,oy,sc)=>{const px=(ox-camx)*Z+W/2,py=(oy-camy)*Z+CY,r=Math.hypot(c.w,c.h)/2*Z*sc;return px+r>0&&px-r<W&&py+r>0&&py-r<H};
+const fade=q=>clamp((q-.3)/.4,0,1);
+function node(id,ox,oy,sc,dp,par,f){
+ const n=N[id],k=Z*sc,sx=(ox-camx)*Z+W/2,sy=(oy-camy)*Z+CY;
+ if(!on(n,ox,oy,sc))return;const q=k/n.u;if(dp&&q<.3)return;
+ const ai=dp?fade(q):1;let cov=0;const cs=[];
+ for(const c of n.k||[]){const X=ox+sc*c[1],Y=oy+sc*f*c[2],s2=sc*c[3];if(on(N[c[0]],X,Y,s2)){cov=Math.max(cov,fade(Z*s2/N[c[0]].u));cs.push([c[0],X,Y,s2,f*(c[4]||1)])}}
+ const a=ai*(1-cov),me={id,ox,oy,sc,up:par};
+ if(a>.01){x.setTransform(DPR*k,0,0,DPR*k*f,DPR*sx,DPR*sy);cu=k;fl=f;lab=Math.abs(sy-CY)<280*k;x.globalAlpha=a;n.f();x.globalAlpha=1}
+ const ds=Math.hypot(sx-W/2,sy-CY);
+ if(a>.5&&q>.5&&(!best||dp>best.dp||(dp==best.dp&&ds<best.ds)))best={id,dp,ds,box:par?(par.up||par):me};
+ for(const c of cs)node(c[0],c[1],c[2],c[3],dp+1,me,c[4])}
+function fr(n){const t=n/1000,dt=Math.min(.05,t-lt||.016);lt=t;layout();if(!Z)Z=N[0].u;
+ if(tw){tw.t+=dt/tw.D;const f=tw.t>=1?1:tw.t*tw.t*(3-2*tw.t);Z=tw.z0*Math.pow(tw.z1/tw.z0,f);
+  const p=Math.abs(tw.z1/tw.z0-1)<1e-3?f:(1-tw.z0/Z)/(1-tw.z0/tw.z1);camx=tw.x0+(tw.x1-tw.x0)*p;camy=tw.y0+(tw.y1-tw.y0)*p;if(tw.t>=1)tw=null}
+ else if(best){const b=best.box,m=N[b.id];camx=clamp(camx,b.ox-m.w/2*b.sc,b.ox+m.w/2*b.sc);camy=clamp(camy,b.oy-m.h/2*b.sc,b.oy+m.h/2*b.sc)}
+ Z=clamp(Z,Zmin,Zmax);if(document.activeElement!==zs)zs.value=Math.log(Z/Zmin)/Math.log(Zmax/Zmin);
  sim(dt);
- x.setTransform(DPR,0,0,DPR,0,0);const gr=x.createRadialGradient(W/2,H/2,20,W/2,H/2,Math.max(W,H));gr.addColorStop(0,'#0b3a33');gr.addColorStop(1,'#041512');x.fillStyle=gr;x.fillRect(0,0,W,H);
- x.setTransform(DPR,0,0,DPR,0,0);
- lvl(0,500,340,L0);lvl(1,380,340,L1);lvl(2,800,540,L2);lvl(3,400,330,L3);lvl(4,360,360,L4);lvl(5,320,320,L5);
+ x.setTransform(1,0,0,1,0,0);x.clearRect(0,0,cv.width,cv.height);x.setTransform(DPR,0,0,DPR,0,0);
+ best=null;node(0,0,0,1,0,null,1);
+ if(best&&best.id!=cl){cl=best.id;$('lv').textContent=LV[cl][0];$('cap').textContent=LV[cl][1];[...chips.children].forEach((b,i)=>b.classList.toggle('on',i==cl))}
  [['m0',M.H],['m1',M.atp],['m2',M.jl],['m3',M.jl]].forEach(a=>$(a[0]).style.width=clamp(a[1]*100,0,100)+'%');
  requestAnimationFrame(fr)}
 requestAnimationFrame(fr);
