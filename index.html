@@ -8,9 +8,12 @@ canvas{position:fixed;inset:0;width:100%;height:100%;touch-action:none}
 #top{position:fixed;left:12px;right:12px;top:calc(env(safe-area-inset-top,0px) + 10px);pointer-events:none}
 #lv{font-size:21px;font-weight:600;letter-spacing:-.01em}#cap{color:var(--dim);max-width:560px;font-size:13px}
 #tip{font-size:11px;color:#6f9a8c;margin-top:2px}
+#gl{display:none;margin-top:8px;max-height:36vh;overflow:auto;font-size:12px;color:var(--dim)}#gl.o{display:block}#gl h4{margin:10px 0 4px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--acc)}#gl h4:first-child{margin-top:0}#gl p{margin:0 0 6px;display:flex;gap:8px;align-items:flex-start}#gl b{color:var(--ink);font-weight:600}
+#gl summary{cursor:pointer;color:var(--acc);margin-top:10px}
+.sc{flex:none;width:38px;display:flex;justify-content:center;margin-top:1px}.sw{width:14px;height:14px;display:block}.sw.t{width:auto;height:auto;font-style:normal;font-size:10px;font-weight:600;line-height:14px}
 #bot{position:fixed;left:0;right:0;bottom:0;padding:18px 12px calc(env(safe-area-inset-bottom,0px) + 8px);background:linear-gradient(transparent,var(--bg) 22%)}
 #chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px}
-#chips button,#tg{flex:none;background:#0d3a33;color:var(--ink);border:1px solid var(--line);border-radius:14px;padding:5px 11px;font:inherit;font-size:12px}
+#chips button,#tg,#gb{flex:none;background:#0d3a33;color:var(--ink);border:1px solid var(--line);border-radius:14px;padding:5px 11px;font:inherit;font-size:12px}
 #chips button.on{background:var(--acc);color:#1b1a08;border-color:var(--acc)}
 #row{display:flex;gap:10px;align-items:center}#zs{flex:1;accent-color:var(--acc)}
 #p{display:none;grid-template-columns:1fr 1fr;gap:6px 14px;margin-top:8px;max-height:38vh;overflow:auto}
@@ -24,7 +27,8 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-of
 <canvas id="c"></canvas>
 <div id="top"><div id="lv"></div><div id="cap"></div><div id="tip">Ziehen: bewegen · Pinch oder Mausrad: zoomen · Chips: direkt zum Element</div></div>
 <div id="bot"><div id="chips"></div>
-<div id="row"><input id="zs" type="range" min="0" max="1" step="0.0005" value="0" aria-label="Zoom"><button id="tg">Regler</button></div>
+<div id="row"><input id="zs" type="range" min="0" max="1" step="0.0005" value="0" aria-label="Zoom"><button id="gb">Glossar</button><button id="tg">Regler</button></div>
+<div id="gl"></div>
 <div id="p">
 <div id="hint"></div>
 <div id="ms"><div class="m">Protonengradient<i id="m0"></i></div><div class="m">ATP-Bildung<i id="m1"></i></div><div class="m">NADPH-Bildung<i id="m2"></i></div><div class="m">O₂-Freisetzung<i id="m3"></i></div></div>
@@ -59,7 +63,90 @@ const col=()=>S.white?'#fff':`hsl(${270-(S.lam-400)/300*270},95%,62%)`;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 // UI
 const chips=$('chips');LV.forEach((l,i)=>{const b=document.createElement('button');b.textContent=l[0].replace('-Komplex','');b.onclick=()=>go(i);chips.appendChild(b)});
-$('tg').onclick=()=>$('p').classList.toggle('o');
+$('tg').onclick=()=>{$('gl').classList.remove('o');$('p').classList.toggle('o')};
+$('gb').onclick=()=>{$('p').classList.remove('o');$('gl').classList.toggle('o');renderGL()};
+function rib(X,Y,s,r){x.save();x.translate(X,Y);x.rotate(r||0);x.beginPath();x.ellipse(0,0,5*s,4*s,0,0,TAU);x.fillStyle='#e9dcae';x.fill();x.beginPath();x.ellipse(-.5*s,-4*s,3.6*s,2.4*s,0,0,TAU);x.fillStyle='#c4ad6c';x.fill();x.restore()}
+const GL=[['Licht und Teilchen',[
+['#ffffff','l','Photon (hν)','Zickzack-Linie in der gewählten Lichtfarbe. Wird vom Chlorophyll absorbiert und regt Elektronen an.'],
+['#ffe45c','c','Elektron (e⁻)','gelber Punkt. Läuft von H₂O über PS II, PQ, Cyt b₆f, PC und PS I bis zum NADP⁺.'],
+['#ff7a6b','c','Proton (H⁺)','roter Punkt. Sammelt sich im Lumen und bildet den Gradienten, fließt über die ATP-Synthase ins Stroma.'],
+['#e6f2e8','t','Sauerstoff (O₂)','Schriftzug O₂, steigt aus PS II auf. Nebenprodukt der Fotolyse.','O₂'],
+['#ffc78f','t','ATP','Schriftzug, entsteht an F₁ der ATP-Synthase (ADP + Pᵢ → ATP).','ATP'],
+['#ffb86b','t','NADPH','Schriftzug, entsteht an der FNR (NADP⁺ + 2 e⁻ + H⁺ → NADPH). Reduktionsmittel für die Dunkelreaktion.','NADPH']]],
+['Komplexe in der Membran',[
+['#7a5fc2','r','Photosystem II (P680)','violetter Block mit D1/D2. Am Mn-Cluster (oranger Punkt, Lumenseite) wird H₂O gespalten.'],
+['#4aa3c7','r','Cytochrom-b₆f','blauer Doppelblock mit roten Häm-Punkten. Überträgt e⁻ von PQ auf PC und pumpt H⁺ ins Lumen.'],
+['#c25f9a','r','Photosystem I (P700)','rosa Block. Durch Licht angeregt gibt er Elektronen an Ferredoxin ab.'],
+['#e0873c','r','ATP-Synthase','oranger Block (F₀) mit rundem Knopf (F₁). Der weiße Zeiger dreht sich mit dem Protonenfluss.'],
+['#3f8f4a','r','LHC II / LHC I','grüne Blöcke neben den Photosystemen. Lichtsammelkomplexe mit Chlorophyll.']]],
+['Elektronenüberträger',[
+['#9fe6ff','c','Plastochinon (PQ)','hellblaue Punkte in der Membran. Beweglich, überträgt e⁻ von PS II zum Cyt b₆f.'],
+['#ffd7ef','c','Plastocyanin (PC)','rosa Punkt im Lumen. Bringt e⁻ vom Cyt b₆f zu PS I.'],
+['#ffb86b','c','Ferredoxin (Fd)','oranger Punkt im Stroma. Nimmt e⁻ von PS I und gibt sie an die FNR.'],
+['#e0873c','r','FNR (NADP⁺-Reduktase)','kleiner oranger Block im Stroma. Reduziert NADP⁺ zu NADPH.']]],
+['Räume und Membran',[
+['#7fd08a','c','Lipid-Doppelschicht','grünes Band (bei starkem Zoom einzelne Lipidköpfe). Trennt Stroma und Lumen.'],
+['#10404f','r','Stroma','blaue Fläche außerhalb des Thylakoids. Enthält NADP⁺, ADP und Pᵢ.'],
+['#5c4a1e','r','Lumen','braune Fläche im Thylakoid. Wird mit steigendem Gradienten intensiver.'],
+['#f5d36b','t','Zyklischer Fluss','Schriftzug „zyklisch“ bei aktivem Regler. Elektronen laufen von PS I zurück zum Cyt b₆f: nur ATP, kein NADPH, kein O₂.','zykl.']]]];
+const sw=e=>'<span class="sc">'+(e[1]=='l'?'<svg class="sw" viewBox="0 0 14 14"><polyline points="2,1 10,4 4,8 12,13" fill="none" stroke="'+e[0]+'" stroke-width="1.6"/></svg>':e[1]=='t'?'<i class="sw t" style="color:'+e[0]+'">'+e[4]+'</i>':'<i class="sw" style="background:'+e[0]+';border-radius:'+(e[1]=='c'?'50%':'4px')+'"></i>')+'</span>';
+const GLV=[
+[['Aufbau',[
+['#7fd08a','r','Hülle (2 Membranen)','grüner Rand. Äußere und innere Membran umschließen das Stroma.'],
+['#14414d','r','Stroma','blaugrüne Fläche. Enthält Enzyme, Ribosomen und Stärke. Hier läuft später der Calvin-Zyklus.'],
+['#3f9b5a','r','Granum','grüne Scheibenstapel aus Thylakoiden. Hier läuft die Lichtreaktion ab.'],
+['#3f9b5a','l','Stromalamelle','grüne Linien zwischen den Grana. Verbinden die Stapel.'],
+['#d9e3d0','c','Stärke','helles Korn im Stroma. Speicher für das Produkt der Dunkelreaktion.'],
+['#e9dcae','c','Ribosomen (70S)','beige Doppelpunkte im Stroma. Bauen Proteine, z. B. D1. Gehören nicht zur Lichtreaktion selbst.'],
+['#ffffff','l','Licht','Zickzack-Linien. Je mehr Licht, desto mehr Photonen.'],
+['#e6f2e8','t','Sauerstoff (O₂)','Schriftzug, erscheint bei laufender Fotolyse.','O₂']]]],
+[['Thylakoide',[
+['#5c4a1e','r','Lumen','braune Füllung der Scheiben. Wird mit steigendem Gradienten intensiver.'],
+['#10404f','r','Stroma','dunkelblauer Zwischenraum zwischen den Scheiben.'],
+['#7fd08a','r','Thylakoidmembran','grüner Rand jeder Scheibe. Trägt die Komplexe.'],
+['#ff7a6b','c','Protonen (H⁺)','rote Punkte im Lumen. Mehr Punkte bedeuten einen größeren Gradienten.'],
+['#7a5fc2','r','Komplexe','farbige Markierungen in der Membran: violett PS II, blau Cyt b₆f, rosa PS I, orange ATP-Synthase.']]]],
+null,
+[['Photosystem II',[
+['#7a5fc2','r','Proteinkörper','violette Fläche. PS II mit Antenne und Reaktionszentrum.'],
+['#2d7a4a','c','Antennenchlorophylle','grüne Ringe. Sammeln Lichtenergie (mit Carotinoiden) und leiten sie zum Zentrum.'],
+['#9be28a','c','P680','Kreis in der Mitte. Reaktionszentrum, blitzt bei der Elektronenabgabe weiß auf.'],
+['#e08a3c','c','Mn₄CaO₅-Cluster','orange Kreise unten. Spaltet Wasser: 2 H₂O → O₂ + 4 H⁺ + 4 e⁻.'],
+['#ffe45c','c','Elektron (e⁻)','gelbe Punkte. Kommen vom Wasser, wandern zum P680 und weiter zum PQ.'],
+['#9fe6ff','t','Plastochinon (PQ)','Beschriftung rechts. Nimmt die Elektronen auf.','PQ']]]],
+[['Cytochrom-b₆f',[
+['#4aa3c7','r','Komplex','blauer Doppelblock in der Membran.'],
+['#d94f4f','c','Häm-Gruppen','rote Punkte. Eisenhaltige Elektronenüberträger.'],
+['#9fe6ff','c','PQH₂ → PQ','hellblauer Punkt von links. Gibt Elektronen und Protonen ab.'],
+['#ff7a6b','c','Protonen (H⁺)','rote Punkte, die ins Lumen wandern.'],
+['#ffe45c','c','Elektron (e⁻)','gelbe Punkte. Laufen weiter zum Plastocyanin (PC).']]]],
+[['Photosystem I',[
+['#c25f9a','r','Proteinkörper','rosa Fläche. PS I mit Antenne (LHC I) und P700.'],
+['#2d7a4a','c','Antennenchlorophylle','grüne Ringe, wie bei PS II.'],
+['#ffd7ef','c','P700','Kreis in der Mitte. Reaktionszentrum von PS I.'],
+['#ffd7ef','c','Plastocyanin (PC)','Punkt unten im Lumen. Füllt die Elektronenlücke.'],
+['#ffb86b','c','Ferredoxin (Fd)','oranger Punkt oben rechts. Nimmt die Elektronen auf.']]]],
+[['ATP-Synthase',[
+['#e0873c','c','F₁-Teil (α₃β₃)','runder Knopf im Stroma mit sechs Untereinheiten. Hier entsteht ATP.'],
+['#ffffff','l','γ-Stiel','weißer Zeiger. Dreht sich schneller bei höherem Protonenfluss.'],
+['#e0873c','r','F₀-Teil (c-Ring)','Block in der Membran. Die Protonen strömen hindurch.'],
+['#ffe0a8','c','c-Untereinheiten','helle Punkte im F₀-Teil. Drehen mit.'],
+['#ff7a6b','c','Protonen (H⁺)','rote Punkte. Fließen vom Lumen durch F₀ ins Stroma.']]]],
+[['Chlorophyll a',[
+['#7fd08a','c','Porphyrinring','vier grüne Pyrrolringe (Kreise).'],
+['#9be28a','c','Magnesium (Mg²⁺)','grüner Kreis in der Mitte, von vier N-Atomen gehalten.'],
+['#3b6fd6','c','Stickstoff (N)','blaue Kreise um das Mg.'],
+['#ffe45c','c','π-Elektronensystem','gelbe Punkte auf dem äußeren Ring. Absorbieren das Licht und leuchten bei hoher Intensität stärker.'],
+['#8fb3a6','l','Phytolschwanz','graue Zickzack-Linie. Verankert das Molekül in der Membran.']]]],
+[['Atomares Modell',[
+['#ff9f6b','c','Kern (Mg)','oranger Kreis in der Mitte.'],
+['#9fe6ff','c','Elektronen','hellblaue Punkte auf den Schalen K, L und M.'],
+['#ffe45c','c','Angeregtes Elektron','gelber Punkt. Springt nach der Photonenabsorption auf die äußere Schale und wird dann an den Akzeptor abgegeben.'],
+['#ffffff','l','Photon (hν)','farbige Welle von links.']]]]];
+GLV[2]=GL;let gOpen=false;$('gl').addEventListener('toggle',e=>{gOpen=e.target.open},true);
+const ent=e=>'<p>'+sw(e)+'<span><b>'+e[2]+'</b> – '+e[3]+'</span></p>';
+function renderGL(){const c=cl<0?0:cl;$('gl').innerHTML='<h4 style="color:var(--ink)">Glossar: '+LV[c][0]+'</h4>'+GLV[c].map(g=>'<h4>'+g[0]+'</h4>'+g[1].map(ent).join('')).join('')+'<details'+(gOpen?' open':'')+'><summary>Weitere Ansichten</summary>'+GLV.map((g,i)=>i==c?'':'<h4>'+LV[i][0]+'</h4>'+g.map(q=>q[1].map(ent).join('')).join('')).join('')+'</details>'}
+const _g0=GL.map(g=>'<h4>'+g[0]+'</h4>'+g[1].map(e=>'<p>'+sw(e)+'<span><b>'+e[2]+'</b> – '+e[3]+'</span></p>').join('')).join('');
 const zs=$('zs');zs.oninput=()=>{tw=null;Z=Math.exp(Math.log(Zmin)+(+zs.value)*Math.log(Zmax/Zmin))};
 function hint(){const ab=S.white?.55:absF(S.lam);return S.dcmu?'DCMU blockiert die Weitergabe von PS II an Plastochinon: kein O₂, kaum Gradient, kaum ATP.':S.unc?'Der Entkoppler macht die Membran für H⁺ durchlässig: Der Gradient bricht zusammen, die ATP-Synthase steht fast still.':S.water<.1?'Ohne Wasser fehlt der Ersatz für die Elektronen von P680: Die Elektronentransportkette kommt zum Erliegen.':S.light<5?'Ohne Licht werden keine Elektronen angeregt.':S.nadp<.3?(S.cyc?'NADP⁺ ist knapp, doch der zyklische Fluss pumpt weiter Protonen: ATP entsteht ohne NADPH und O₂.':'NADP⁺ ist knapp: Das Ferredoxin kann seine Elektronen nicht loswerden, der Fluss staut sich.'):S.cyc?'Zyklischer Fluss: Elektronen laufen von PS I zurück zum Cyt b₆f. Es entsteht nur ATP, kein NADPH, kein O₂.':ab<.3?'Grünes Licht wird von Chlorophyll kaum absorbiert, die Reaktion läuft schwach.':'Linearer Elektronentransport: Licht, H₂O, NADP⁺ und ADP+Pᵢ sind ausreichend vorhanden.'}
 function sync(){$('lam').disabled=S.white;$('nm').textContent=S.white?'':S.lam+' nm';$('hint').textContent=hint()}
@@ -117,7 +204,8 @@ function L0(){const t=lt;
  const G=GR;
  x.strokeStyle='#3f9b5a';x.lineWidth=3/cu;G.forEach((a,i)=>{const b=G[(i+1)%G.length];x.beginPath();x.moveTo(a[0],a[1]);x.quadraticCurveTo((a[0]+b[0])/2+10,(a[1]+b[1])/2+14,b[0],b[1]);x.stroke()});
  G.forEach(a=>{for(let k=0;k<5;k++)rr(a[0]-28,a[1]-28+k*11,56,8,4,`hsl(${140-M.H*40},45%,${38+M.H*14}%)`,'#9be28a',1)});
- x.beginPath();x.ellipse(170,-80,26,16,.3,0,TAU);x.fillStyle='#d9e3d0';x.fill();tx('Stärke',170,-102,'#8fb3a6',11);
+ x.beginPath();x.ellipse(165,-12,26,16,.3,0,TAU);x.fillStyle='#d9e3d0';x.fill();tx('Stärke',165,-34,'#8fb3a6',11);
+ RB.forEach(b=>rib(b[0]+Math.sin(lt*.6+b[2]*2)*2,b[1]+Math.cos(lt*.5+b[2])*2,1,b[2]));tx('Ribosomen',85,108,'#e9dcae',11);
  tx('Hülle (2 Membranen)',0,-168,'#9be28a',12);tx('Stroma',-175,70,'#8fb3a6',12);tx('Granum',-150,-64,'#e6f2e8',12);tx('Stromalamelle',-15,92,'#8fb3a6',11);
  for(let k=0;k<6;k++){const yy=((t*70*S.light/100+k*58)%340)-170;photon(-200+k*80,yy-30,16,.7)}
  x.globalAlpha=Math.min(1,M.jl*2);tx('O₂ ↑',255,-40,'#e6f2e8',13);}
@@ -143,6 +231,7 @@ function L2t(){const T=lab?tx:()=>0;
  T('Stroma',-390,-240,'#8fb3a6',13,'left');T('Lumen',-390,238,'#f5d36b',13,'left');
  for(let i=0;i<14;i++)ci(-380+i*58+Math.sin(lt+i)*4,-60-((i*37)%150)+Math.cos(lt*.8+i)*4,2.5,'#ff7a6b99');
  x.beginPath();LP.forEach(p=>{x.moveTo(p.x+2.8,p.y);x.arc(p.x,p.y,2.8,0,TAU)});x.fillStyle='#ff7a6b';x.fill();
+ 
  for(let k=0;k<4;k++)ci(-215+60*Math.sin(lt*.4+k*1.7),k%2?6:-6,4,'#9fe6ff55','#9fe6ff',1);
  rr(-392,-24,24,48,8,'#3f8f4a','#9be28a',1.5);T('LHC II',-380,-32,'#9be28a',10);rr(139,-22,20,44,8,'#3f8f4a','#9be28a',1.5);
  rr(-340,-34,80,68,14,'#7a5fc2','#c6b5ff',2);rr(-333,-26,32,52,8,'#6a4fb0');rr(-299,-26,32,52,8,'#8a6fd2');T('D1',-317,3,'#e6defa',10);T('D2',-283,3,'#e6defa',10);
@@ -216,7 +305,8 @@ function L5(){
  ci(X,Y,6,st.s>=2?'#ffe45c':'#9fe6ff','#fff',1.5);if(st.s>=2)tx(st.s==3?'e⁻ → Akzeptor':'e⁻*',X,Y-12,'#ffe45c',11);
  tx('Elektron: Grundzustand → angeregter Zustand',0,150,'#e6f2e8',11)}
 
-const GR=[[-150,-30],[-70,45],[-60,-75],[25,-10],[110,-60],[120,45]];
+const GR=[[-150,-30],[-70,45],[-60,-75],[25,-10],[110,-60],[120,45]],RB=[];
+{let sd=7;const rn=()=>(sd=(sd*16807)%2147483647)/2147483647;while(RB.length<42){const a=rn()*TAU,r=Math.sqrt(rn()),X=Math.cos(a)*r*205,Y=Math.sin(a)*r*122,z=rn()*3;if(GR.some(g=>Math.abs(X-g[0])<36&&Math.abs(Y-g[1])<36)||Math.hypot(X-165,Y+12)<42)continue;RB.push([X,Y,z])}}
 const TL=[-3,-2,-1,0,1,2].map(t=>t*48+24),K1=[];
 for(let k=0;k<6;k++)for(const s of[-1,1])for(const t of TL)K1.push([2,t,-115+k*46+s*15,.06,-s]);
 const K2=[[3,-300,0,.2],[4,-100,0,.25],[5,100,0,.2],[6,300,-16,.25]],K3=AN.map(a=>[7,a[0],a[1]-10,.11]);
@@ -255,7 +345,7 @@ function fr(n){const t=n/1000,dt=Math.min(.05,t-lt||.016);lt=t;layout();if(!Z)Z=
  sim(dt);
  x.setTransform(1,0,0,1,0,0);x.clearRect(0,0,cv.width,cv.height);x.setTransform(DPR,0,0,DPR,0,0);
  best=null;node(0,0,0,1,0,null,1);
- if(best&&best.id!=cl){cl=best.id;$('lv').textContent=LV[cl][0];$('cap').textContent=LV[cl][1];[...chips.children].forEach((b,i)=>b.classList.toggle('on',i==cl))}
+ if(best&&best.id!=cl){cl=best.id;$('lv').textContent=LV[cl][0];$('cap').textContent=LV[cl][1];[...chips.children].forEach((b,i)=>b.classList.toggle('on',i==cl));renderGL()}
  [['m0',M.H],['m1',M.atp],['m2',M.jl],['m3',M.jl]].forEach(a=>$(a[0]).style.width=clamp(a[1]*100,0,100)+'%');
  requestAnimationFrame(fr)}
 requestAnimationFrame(fr);
