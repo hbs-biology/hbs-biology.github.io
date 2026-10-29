@@ -1,4 +1,4 @@
-<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Im Chloroplasten – Zoom in die Lichtreaktion</title>
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Vom Blatt zum Atom – Zoom in die Lichtreaktion</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600&display=swap">
 <style>
 :root{--bg:#06201d;--ink:#e6f2e8;--dim:#8fb3a6;--line:#2a5a4f;--acc:#f5d36b;color-scheme:dark;box-sizing:border-box}
@@ -47,14 +47,15 @@ const S={light:70,lam:600,white:true,water:1,nadp:1,cyc:false,dcmu:false,unc:fal
 const M={H:0,jl:0,jc:0,atp:0};
 const LV=[['Chloroplast','Zwei Hüllmembranen umschließen das Stroma. Darin liegen Grana, Stapel aus Thylakoiden. Zoome auf ein Granum.'],
 ['Granum','Flache Säckchen (Thylakoide) mit Lumen innen und Stroma außen. Zoome auf die Membran einer Scheibe.'],
-['Thylakoidmembran','Lipiddoppelschicht mit PS II, Plastochinon-Pool, Cyt b₆f, PS I, FNR und ATP-Synthase. Elektronen (gelb) fließen von H₂O zu NADP⁺, Protonen (rot) bauen den Gradienten auf.'],
+['Thylakoidmembran','Lipiddoppelschicht mit PS II, Plastochinon-Pool, Cyt b₆f, PS I, FNR (NADP⁺-Reduktase) und ATP-Synthase. Elektronen (gelb) fließen von H₂O zu NADP⁺, Protonen (rot) bauen den Gradienten auf.'],
+['Membranproteine','Alle Komplexe in herangezoomter Form: PS II mit LHC II, Cyt b₆f, PS I mit LHC I, ATP-Synthase und FNR (NADP⁺-Reduktase). Zoome auf einen Komplex.'],
 ['Photosystem II','Antennenpigmente leiten die Energie zum Reaktionszentrum P680. Die Fotolyse am Mn-Cluster ersetzt dessen Elektronen. Zoome auf ein Chlorophyll.'],
 ['Cytochrom-b₆f-Komplex','Plastochinol gibt Elektronen ab. Dabei werden Protonen ins Lumen freigesetzt, die Elektronen gehen weiter zum Plastocyanin.'],
 ['Photosystem I','P700 wird durch Licht angeregt und gibt Elektronen an Ferredoxin ab. Plastocyanin füllt die Elektronenlücke wieder auf.'],
 ['ATP-Synthase','Protonen strömen durch F₀ ins Stroma und drehen den Rotor. Die Drehung des γ-Stiels treibt in F₁ die ATP-Bildung an.'],
-['Chlorophyll a','Porphyrinring mit Mg im Zentrum, ausgedehntes π-Elektronensystem, Phytolschwanz als Anker in der Membran.'],
-['Atomare Ebene','Ein Photon hebt ein Elektron auf ein höheres Energieniveau. Von dort kann es an den Akzeptor abgegeben werden (vereinfachtes Bohr-Modell).']];
-let W,H,DPR,cu=1,fl=1,lab=1,lt=0,cl=-1,Z=0,camx=0,camy=0,CY=0,Zmin=1,Zmax=1,tw=null,best=null;
+['Chlorophyll a','Vereinfachtes Gerüst ohne Wasserstoffatome: Mg im Zentrum, Porphyrinring, Esterbrücke und verkürzter Phytolschwanz. Ein Photon regt ein π-Elektron an, es geht an den Akzeptor, der Ring bleibt als Chl⁺• zurück und wird vom Donor aufgefüllt. Mg²⁺ bleibt unverändert.'],
+['Atomare Ebene','Bohr-Modell des gewählten Atoms. Bei C und N regt ein Photon ein π-Elektron an, es verlässt das Atom Richtung Akzeptor, ein Donor füllt das Loch. Mg²⁺ und O bleiben unverändert (vereinfachtes Modell).']];
+let W,H,DPR,cu=1,fl=1,lab=1,lt=0,cl=-1,Z=0,camx=0,camy=0,CY=0,Zmin=1,Zmax=1,tw=null,best=null,AX='Mg',VIS={},VCH={},gKey='',dtG=.016,FRM=0,stF=-1;
 function rs(){DPR=devicePixelRatio||1;W=innerWidth;H=innerHeight;cv.width=W*DPR;cv.height=H*DPR}
 addEventListener('resize',rs);rs();
 const g=(l,m,s)=>Math.exp(-(((l-m)/s)**2));
@@ -62,7 +63,7 @@ const absF=l=>.1+.9*Math.max(g(l,433,20),g(l,680,17),.8*g(l,458,14),.65*g(l,645,
 const col=()=>S.white?'#fff':`hsl(${270-(S.lam-400)/300*270},95%,62%)`;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 // UI
-const chips=$('chips');LV.forEach((l,i)=>{const b=document.createElement('button');b.textContent=l[0].replace('-Komplex','');b.onclick=()=>go(i);chips.appendChild(b)});
+const chips=$('chips');
 $('tg').onclick=()=>{$('gl').classList.remove('o');$('p').classList.toggle('o')};
 $('gb').onclick=()=>{$('p').classList.remove('o');$('gl').classList.toggle('o');renderGL()};
 function rib(X,Y,s,r){x.save();x.translate(X,Y);x.rotate(r||0);x.beginPath();x.ellipse(0,0,5*s,4*s,0,0,TAU);x.fillStyle='#e9dcae';x.fill();x.beginPath();x.ellipse(-.5*s,-4*s,3.6*s,2.4*s,0,0,TAU);x.fillStyle='#c4ad6c';x.fill();x.restore()}
@@ -90,6 +91,20 @@ const GL=[['Licht und Teilchen',[
 ['#5c4a1e','r','Lumen','braune Fläche im Thylakoid. Wird mit steigendem Gradienten intensiver.'],
 ['#f5d36b','t','Zyklischer Fluss','Schriftzug „zyklisch“ bei aktivem Regler. Elektronen laufen von PS I zurück zum Cyt b₆f: nur ATP, kein NADPH, kein O₂.','zykl.']]]];
 const sw=e=>'<span class="sc">'+(e[1]=='l'?'<svg class="sw" viewBox="0 0 14 14"><polyline points="2,1 10,4 4,8 12,13" fill="none" stroke="'+e[0]+'" stroke-width="1.6"/></svg>':e[1]=='t'?'<i class="sw t" style="color:'+e[0]+'">'+e[4]+'</i>':'<i class="sw" style="background:'+e[0]+';border-radius:'+(e[1]=='c'?'50%':'4px')+'"></i>')+'</span>';
+const GC=[['Komplexe in Detailform',[
+['#7a5fc2','r','Photosystem II (Dimer)','zwei violette Monomere mit D1/D2. Unten der Mn-Cluster (orange Punkte): Fotolyse von H₂O.',null,4],
+['#4aa3c7','r','Cytochrom-b₆f (Dimer)','zwei blaue Monomere mit roten Häm-Punkten und Köpfen zum Lumen. Pumpt H⁺ ins Lumen.',null,5],
+['#c25f9a','r','Photosystem I','rosa Kern mit P700 (Kreis in der Mitte) und PsaC (Höcker zum Stroma).',null,6],
+['#e0873c','r','ATP-Synthase','F₁-Knopf mit α/β-Untereinheiten und weißem γ-Zeiger, F₀-Block mit c-Ring und b-Stiel.',null,7],
+['#3f8f4a','r','LHC II / LHC I','grüne Antennenkomplexe mit Chlorophyll-Punkten, direkt an PS II und PS I.'],
+['#e0873c','c','FNR (NADP⁺-Reduktase)','orangefarbener Kreis im Stroma oben rechts. Überträgt e⁻ von Fd auf NADP⁺ und bildet NADPH.']]],
+['Überträger und Teilchen',[
+['#9fe6ff','c','Plastochinon (PQ)','hellblaue Punkte in der Membran. Von PS II zum Cyt b₆f.'],
+['#ffd7ef','c','Plastocyanin (PC)','rosa Punkt im Lumen. Vom Cyt b₆f zu PS I.'],
+['#ffb86b','c','Ferredoxin (Fd)','oranger Punkt im Stroma. Von PS I zur FNR.'],
+['#ffe45c','c','Elektron (e⁻)','gelber Punkt auf dem Weg von H₂O zu NADP⁺.'],
+['#ff7a6b','c','Proton (H⁺)','roter Punkt. Gradient im Lumen, Fluss durch die ATP-Synthase.'],
+['#ffffff','l','Photon (hν)','Zickzack-Linie in der Lichtfarbe.']]]];
 const GLV=[
 [['Aufbau',[
 ['#7fd08a','r','Hülle (2 Membranen)','grüner Rand. Äußere und innere Membran umschließen das Stroma.'],
@@ -106,7 +121,7 @@ const GLV=[
 ['#7fd08a','r','Thylakoidmembran','grüner Rand jeder Scheibe. Trägt die Komplexe.'],
 ['#ff7a6b','c','Protonen (H⁺)','rote Punkte im Lumen. Mehr Punkte bedeuten einen größeren Gradienten.'],
 ['#7a5fc2','r','Komplexe','farbige Markierungen in der Membran: violett PS II, blau Cyt b₆f, rosa PS I, orange ATP-Synthase.']]]],
-null,
+null,GC,
 [['Photosystem II',[
 ['#7a5fc2','r','Proteinkörper','violette Fläche. PS II mit Antenne und Reaktionszentrum.'],
 ['#2d7a4a','c','Antennenchlorophylle','grüne Ringe. Sammeln Lichtenergie (mit Carotinoiden) und leiten sie zum Zentrum.'],
@@ -132,21 +147,24 @@ null,
 ['#e0873c','r','F₀-Teil (c-Ring)','Block in der Membran. Die Protonen strömen hindurch.'],
 ['#ffe0a8','c','c-Untereinheiten','helle Punkte im F₀-Teil. Drehen mit.'],
 ['#ff7a6b','c','Protonen (H⁺)','rote Punkte. Fließen vom Lumen durch F₀ ins Stroma.']]]],
-[['Chlorophyll a',[
-['#7fd08a','c','Porphyrinring','vier grüne Pyrrolringe (Kreise).'],
-['#9be28a','c','Magnesium (Mg²⁺)','grüner Kreis in der Mitte, von vier N-Atomen gehalten.'],
-['#3b6fd6','c','Stickstoff (N)','blaue Kreise um das Mg.'],
-['#ffe45c','c','π-Elektronensystem','gelbe Punkte auf dem äußeren Ring. Absorbieren das Licht und leuchten bei hoher Intensität stärker.'],
-['#8fb3a6','l','Phytolschwanz','graue Zickzack-Linie. Verankert das Molekül in der Membran.']]]],
-[['Atomares Modell',[
-['#ff9f6b','c','Kern (Mg)','oranger Kreis in der Mitte.'],
-['#9fe6ff','c','Elektronen','hellblaue Punkte auf den Schalen K, L und M.'],
-['#ffe45c','c','Angeregtes Elektron','gelber Punkt. Springt nach der Photonenabsorption auf die äußere Schale und wird dann an den Akzeptor abgegeben.'],
+[['Chlorophyll a (Gerüst)',[
+['#9be28a','c','Magnesium (Mg)','grüner Kreis in der Mitte, von vier N-Atomen gehalten. Bleibt als Mg²⁺ unverändert und gibt kein Elektron ab.'],
+['#3b6fd6','c','Stickstoff (N)','blaue Kreise. Je ein N pro Pyrrolring.'],
+['#8f9f9a','c','Kohlenstoff (C)','graue Kreise. Ringgerüst, Brücken, Ester und Phytolkette.'],
+['#e0584f','c','Sauerstoff (O)','rote Kreise an der Esterbrücke.'],
+['#a5c4bd','l','Bindungen','helle Linien zwischen den Atomen. Wasserstoffatome sind nicht gezeigt.'],
+['#ffe45c','c','π-Elektronensystem','gelbe Punkte auf dem äußeren Ring. Das Photon regt eines an, es wandert zum Akzeptor. Zurück bleibt ein Elektronenloch (+), das der Donor auffüllt.'],
+['#8fb3a6','l','Phytolkette','verkürzter Schwanz rechts unten. Verankert das Molekül in der Membran.']]]],
+[['Bohr-Modell',[
+['#ff9f6b','c','Atomkern','farbiger Kreis in der Mitte, Farbe und Symbol zeigen das Element.'],
+['#9fe6ff','c','Elektronen','hellblaue Punkte auf den Schalen K, L (und M).'],
+['#ffe45c','c','Angeregtes Elektron','gelber Punkt. Bei C und N springt das π-Elektron auf eine höhere Schale und geht an den Akzeptor. Ein Donor-Elektron füllt das Loch.'],
 ['#ffffff','l','Photon (hν)','farbige Welle von links.']]]]];
 GLV[2]=GL;let gOpen=false;$('gl').addEventListener('toggle',e=>{gOpen=e.target.open},true);
 const ent=e=>'<p>'+sw(e)+'<span><b>'+e[2]+'</b> – '+e[3]+'</span></p>';
-function renderGL(){const c=cl<0?0:cl;$('gl').innerHTML='<h4 style="color:var(--ink)">Glossar: '+LV[c][0]+'</h4>'+GLV[c].map(g=>'<h4>'+g[0]+'</h4>'+g[1].map(ent).join('')).join('')+'<details'+(gOpen?' open':'')+'><summary>Weitere Ansichten</summary>'+GLV.map((g,i)=>i==c?'':'<h4>'+LV[i][0]+'</h4>'+g.map(q=>q[1].map(ent).join('')).join('')).join('')+'</details>'}
-const _g0=GL.map(g=>'<h4>'+g[0]+'</h4>'+g[1].map(e=>'<p>'+sw(e)+'<span><b>'+e[2]+'</b> – '+e[3]+'</span></p>').join('')).join('');
+function renderGL(){const v=Object.keys(VIS).map(Number).filter(i=>GLV[i]).sort((a,b)=>b-a),c=cl<0?0:cl,sh=v.length?v:[c];
+ const sec=i=>GLV[i].map(g=>'<h4>'+g[0]+'</h4>'+g[1].filter(e=>e[5]==null||VCH[e[5]]).map(ent).join('')).join('');
+ $('gl').innerHTML='<h4 style="color:var(--ink)">Glossar: aktuell sichtbar</h4>'+sh.map(i=>'<h4 style="color:var(--ink)">'+LV[i][0]+'</h4>'+sec(i)).join('')+'<details'+(gOpen?' open':'')+'><summary>Weitere Ansichten</summary>'+GLV.map((g,i)=>sh.includes(i)?'':'<h4>'+LV[i][0]+'</h4>'+g.map(q=>q[1].map(ent).join('')).join('')).join('')+'</details>'}
 const zs=$('zs');zs.oninput=()=>{tw=null;Z=Math.exp(Math.log(Zmin)+(+zs.value)*Math.log(Zmax/Zmin))};
 function hint(){const ab=S.white?.55:absF(S.lam);return S.dcmu?'DCMU blockiert die Weitergabe von PS II an Plastochinon: kein O₂, kaum Gradient, kaum ATP.':S.unc?'Der Entkoppler macht die Membran für H⁺ durchlässig: Der Gradient bricht zusammen, die ATP-Synthase steht fast still.':S.water<.1?'Ohne Wasser fehlt der Ersatz für die Elektronen von P680: Die Elektronentransportkette kommt zum Erliegen.':S.light<5?'Ohne Licht werden keine Elektronen angeregt.':S.nadp<.3?(S.cyc?'NADP⁺ ist knapp, doch der zyklische Fluss pumpt weiter Protonen: ATP entsteht ohne NADPH und O₂.':'NADP⁺ ist knapp: Das Ferredoxin kann seine Elektronen nicht loswerden, der Fluss staut sich.'):S.cyc?'Zyklischer Fluss: Elektronen laufen von PS I zurück zum Cyt b₆f. Es entsteht nur ATP, kein NADPH, kein O₂.':ab<.3?'Grünes Licht wird von Chlorophyll kaum absorbiert, die Reaktion läuft schwach.':'Linearer Elektronentransport: Licht, H₂O, NADP⁺ und ADP+Pᵢ sind ausreichend vorhanden.'}
 function sync(){$('lam').disabled=S.white;$('nm').textContent=S.white?'':S.lam+' nm';$('hint').textContent=hint()}
@@ -161,7 +179,7 @@ cv.onpointermove=e=>{const o=pt.get(e.pointerId);if(!o)return;const n={x:e.clien
 cv.onpointerup=cv.onpointercancel=e=>{pt.delete(e.pointerId);pd=0};
 // Zeichenhelfer
 const ci=(X,Y,r,f,s,w)=>{x.beginPath();x.arc(X,Y,r,0,TAU);if(f){x.fillStyle=f;x.fill()}if(s){x.strokeStyle=s;x.lineWidth=(w||1)/cu;x.stroke()}};
-const tx=(t,X,Y,c,z,al)=>{x.save();x.translate(X,Y);x.scale(1/cu,fl/cu);x.fillStyle=c||'#e6f2e8';x.font=(z||12)+'px "Bricolage Grotesque",system-ui,sans-serif';x.textAlign=al||'center';x.fillText(t,0,0);x.restore()};
+const tx=(t,X,Y,c,z,al,bl)=>{x.save();x.translate(X,Y);x.scale(1/cu,fl/cu);x.fillStyle=c||'#e6f2e8';x.font=(z||12)+'px "Bricolage Grotesque",system-ui,sans-serif';x.textAlign=al||'center';x.textBaseline=bl||'alphabetic';x.fillText(t,0,0);x.restore()};
 const rr=(X,Y,w,h,r,f,s,lw)=>{x.beginPath();x.roundRect(X,Y,w,h,r);if(f){x.fillStyle=f;x.fill()}if(s){x.strokeStyle=s;x.lineWidth=(lw||1)/cu;x.stroke()}};
 const ln=(a,b,c,e,s,w)=>{x.beginPath();x.moveTo(a,b);x.lineTo(c,e);x.strokeStyle=s;x.lineWidth=(w||1)/cu;x.stroke()};
 function photon(X,Y,len,a){x.beginPath();for(let k=0;k<=len;k+=3){const px=X+Math.sin(k*.9)*3,py=Y+k;k?x.lineTo(px,py):x.moveTo(px,py)}x.strokeStyle=col();x.globalAlpha=a;x.lineWidth=2/cu;x.stroke();x.globalAlpha=1}
@@ -202,8 +220,12 @@ function L0(){const t=lt;
  x.beginPath();x.ellipse(0,0,235,150,0,0,TAU);x.fillStyle='#14414d';x.fill();x.strokeStyle='#7fd08a';x.lineWidth=6/cu;x.stroke();
  x.beginPath();x.ellipse(0,0,224,139,0,0,TAU);x.strokeStyle='#5fae7c';x.lineWidth=3/cu;x.stroke();
  const G=GR;
- x.strokeStyle='#3f9b5a';x.lineWidth=3/cu;G.forEach((a,i)=>{const b=G[(i+1)%G.length];x.beginPath();x.moveTo(a[0],a[1]);x.quadraticCurveTo((a[0]+b[0])/2+10,(a[1]+b[1])/2+14,b[0],b[1]);x.stroke()});
- G.forEach(a=>{for(let k=0;k<5;k++)rr(a[0]-28,a[1]-28+k*11,56,8,4,`hsl(${140-M.H*40},45%,${38+M.H*14}%)`,'#9be28a',1)});
+ const LM=G.map((a,i)=>{const b=G[(i+1)%G.length],dx=b[0]-a[0],dy=b[1]-a[1],ka=dy>10?4:dy<-10?1:3,kb=dy>10?1:dy<-10?4:3,sa=Math.abs(dx)>=50?Math.sign(dx):1,sb=Math.abs(dx)>=50?-sa:1;
+  return[a[0]+sa*28.5,a[1]+(-130+ka*46)*.19+2.85,b[0]+sb*28.5,b[1]+(-130+kb*46)*.19+2.85,sa,sb,a,b]});
+ const lm=l=>{x.strokeStyle='#3f9b5a';x.lineWidth=3/cu;x.beginPath();x.moveTo(l[0],l[1]);x.bezierCurveTo(l[0]+l[4]*45,l[1],l[2]+l[5]*45,l[3],l[2],l[3]);x.stroke()};
+ LM.forEach(lm);
+ G.forEach(a=>{rr(a[0]-32,a[1]-28,64,56,9,'#10404f');for(let k=0;k<6;k++)rr(a[0]-28.5,a[1]+(-130+k*46)*.19,57,5.7,2.85,lum(),'#9be28a',.76*cu)});
+ LM.forEach(l=>[l[6],l[7]].forEach(g=>{x.save();x.beginPath();x.rect(g[0]-36,g[1]-32,72,64);x.clip();lm(l);x.restore()}));
  x.beginPath();x.ellipse(165,-12,26,16,.3,0,TAU);x.fillStyle='#d9e3d0';x.fill();tx('Stärke',165,-34,'#8fb3a6',11);
  RB.forEach(b=>rib(b[0]+Math.sin(lt*.6+b[2]*2)*2,b[1]+Math.cos(lt*.5+b[2])*2,1,b[2]));tx('Ribosomen',85,108,'#e9dcae',11);
  tx('Hülle (2 Membranen)',0,-168,'#9be28a',12);tx('Stroma',-175,70,'#8fb3a6',12);tx('Granum',-150,-64,'#e6f2e8',12);tx('Stromalamelle',-15,92,'#8fb3a6',11);
@@ -227,125 +249,286 @@ function L2bd(){
  x.beginPath();for(let i=-400;i<=400;i+=10){x.moveTo(i,-9);x.lineTo(i,-1);x.moveTo(i,1);x.lineTo(i,9)}x.strokeStyle='#5fae7c';x.lineWidth=1/cu;x.stroke()}
  else{rr(-400,-17,800,34,0,'#7fd08a');rr(-400,-9,800,18,0,'#5fae7c')}
 }
-function L2t(){const T=lab?tx:()=>0;
+function parts(T){
  T('Stroma',-390,-240,'#8fb3a6',13,'left');T('Lumen',-390,238,'#f5d36b',13,'left');
  for(let i=0;i<14;i++)ci(-380+i*58+Math.sin(lt+i)*4,-60-((i*37)%150)+Math.cos(lt*.8+i)*4,2.5,'#ff7a6b99');
  x.beginPath();LP.forEach(p=>{x.moveTo(p.x+2.8,p.y);x.arc(p.x,p.y,2.8,0,TAU)});x.fillStyle='#ff7a6b';x.fill();
- 
  for(let k=0;k<4;k++)ci(-215+60*Math.sin(lt*.4+k*1.7),k%2?6:-6,4,'#9fe6ff55','#9fe6ff',1);
- rr(-392,-24,24,48,8,'#3f8f4a','#9be28a',1.5);T('LHC II',-380,-32,'#9be28a',10);rr(139,-22,20,44,8,'#3f8f4a','#9be28a',1.5);
- rr(-340,-34,80,68,14,'#7a5fc2','#c6b5ff',2);rr(-333,-26,32,52,8,'#6a4fb0');rr(-299,-26,32,52,8,'#8a6fd2');T('D1',-317,3,'#e6defa',10);T('D2',-283,3,'#e6defa',10);
- rr(-318,34,36,12,6,'#a58be8','#c6b5ff',1.5);ci(-300,42,5,'#e08a3c');T('PS II',-300,-42,'#e6f2e8',12);
- rr(-128,-26,26,54,10,'#4aa3c7','#a5e0f5',2);rr(-98,-26,26,54,10,'#4aa3c7','#a5e0f5',2);
- [[-115,-8],[-115,8],[-85,-8],[-85,8]].forEach(a=>ci(a[0],a[1],3,'#d94f4f'));ci(-100,34,8,'#6bbfe0','#a5e0f5',1.5);T('Cyt b₆f',-100,-34,'#e6f2e8',12);
- rr(65,-30,70,62,14,'#c25f9a','#f0a8d2',2);ci(100,0,6,'#ffffff66');ci(124,-36,9,'#e48fc0','#f0a8d2',1.5);T('PS I',100,-38,'#e6f2e8',12);
- rr(205,-128,22,20,8,'#e0873c','#ffc78f',1.5);T('FNR',216,-134,'#ffc78f',9);
- x.save();x.translate(300,0);atpS(0);x.restore();T('ATP-Synthase',300,-92,'#e6f2e8',12);
  ci(-200,-4,8,'#9fe6ff');T('PQ',-200,-18,'#9fe6ff',11);ci(0,70,9,'#ffd7ef');T('PC',22,72,'#ffd7ef',11);ci(160,-70,8,'#ffb86b');T('Fd',178,-72,'#ffb86b',11);
  T('H₂O → ½ O₂ + 2 H⁺ + 2 e⁻',-300,130,'#e6f2e8',11);ci(-300,100,5,'#9fe6ff');
- T('NADP⁺ + 2 e⁻ + H⁺ → NADPH',215,-148,'#e6f2e8',11);T('ADP + Pᵢ',255,-136,'#8fb3a6',10,'left');
+ T('NADP⁺ + 2 e⁻ + H⁺ → NADPH',215,-160,'#e6f2e8',11);T('ADP + Pᵢ',334,-58,'#8fb3a6',10,'left');
  if(S.cyc)T('zyklisch',20,-130,'#f5d36b',11);
  x.beginPath();PH.forEach(p=>{for(let k=0;k<=18;k+=3){const px=p.x+Math.sin(k*.9)*3,py=p.y+k;k?x.lineTo(px,py):x.moveTo(px,py)}});x.strokeStyle=col();x.globalAlpha*=.9;x.lineWidth=2/cu;x.stroke();x.globalAlpha/=.9;
  FL.forEach(f=>{if(f.k=='*'){ci(f.x,f.y,22*(1-f.l*3),null,col(),2)}else T(f.k,f.x,f.y,f.k=='ATP'?'#ffc78f':f.k=='NADPH'?'#ffb86b':'#e6f2e8',f.k=='NADPH'?12:13)});
  x.beginPath();TP.forEach(p=>{x.moveTo(p.x+3,60-84*p.t);x.arc(p.x,60-84*p.t,3,0,TAU)});x.fillStyle='#ff7a6b';x.fill();x.strokeStyle='#fff';x.lineWidth=1/cu;x.stroke();
  x.beginPath();E.forEach(e=>{const[a,b]=at(e.P,e.s);x.moveTo(a+4.5,b);x.arc(a,b,4.5,0,TAU)});x.fillStyle='#ffe45c';x.fill();x.strokeStyle='#fff8c0';x.lineWidth=1.5/cu;x.stroke();
- T('H⁺-Gradient',-60,215,'#ff9f94',12);}
+ T('H⁺-Gradient',-60,215,'#ff9f94',12)}
+function L2t(){const T=lab?tx:()=>0;
+ rr(-366,-24,24,48,8,'#3f8f4a','#9be28a',1.5);T('LHC II',-354,-32,'#9be28a',10);rr(139,-22,20,44,8,'#3f8f4a','#9be28a',1.5);
+ rr(-340,-34,80,68,14,'#7a5fc2','#c6b5ff',2);rr(-333,-26,32,52,8,'#6a4fb0');rr(-299,-26,32,52,8,'#8a6fd2');T('D1',-317,3,'#e6defa',10);T('D2',-283,3,'#e6defa',10);
+ rr(-318,34,36,12,6,'#a58be8','#c6b5ff',1.5);ci(-300,42,5,'#e08a3c');T('PS II',-300,-42,'#e6f2e8',12);
+ rr(-128,-26,26,54,10,'#4aa3c7','#a5e0f5',2);rr(-98,-26,26,54,10,'#4aa3c7','#a5e0f5',2);
+ [[-115,-8],[-115,8],[-85,-8],[-85,8]].forEach(a=>ci(a[0],a[1],3,'#d94f4f'));ci(-100,34,8,'#6bbfe0','#a5e0f5',1.5);T('Cyt b₆f',-100,-34,'#e6f2e8',12);
+ rr(65,-30,70,62,14,'#c25f9a','#f0a8d2',2);ci(100,0,6,'#ffffff66');ci(124,-36,9,'#e48fc0','#f0a8d2',1.5);T('PS I',100,-38,'#e6f2e8',12);
+ rr(205,-128,22,20,8,'#e0873c','#ffc78f',1.5);T('FNR (NADP⁺-Reduktase)',216,-134,'#ffc78f',8);
+ x.save();x.translate(300,0);atpS(0);x.restore();T('ATP-Synthase',300,-92,'#e6f2e8',12);
+ parts(T)}
+function Lc(){const T=lab?tx:()=>0;
+ rr(-366,-26,26,52,9,'#3f8f4a','#9be28a',1.5);[-14,0,14].forEach(y=>ci(-353,y,4.5,'#2d7a4a','#9be28a',1));T('LHC II',-353,-34,'#9be28a',10);
+ [-340,-300].forEach(px=>{rr(px,-34,40,68,10,'#7a5fc2','#c6b5ff',1.8);rr(px+3,-27,16,54,6,'#6a4fb0');rr(px+21,-27,16,54,6,'#8a6fd2')});
+ T('D1',-329,2,'#e6defa',9);T('D2',-311,2,'#e6defa',9);T('PS II (Dimer)',-300,-42,'#e6f2e8',12);
+ rr(-318,34,36,12,6,'#a58be8','#c6b5ff',1.5);[[-309,41],[-300,44],[-291,41],[-300,38]].forEach(a=>ci(a[0],a[1],3.2,'#e08a3c'));T('Mn-Cluster',-300,60,'#ffc78f',9);
+ [-128,-98].forEach(px=>rr(px,-26,26,54,10,'#4aa3c7','#a5e0f5',1.8));
+ [[-115,-8],[-115,8],[-85,-8],[-85,8]].forEach(a=>ci(a[0],a[1],3,'#d94f4f'));ci(-115,34,8,'#6bbfe0','#a5e0f5',1.2);ci(-85,34,8,'#6bbfe0','#a5e0f5',1.2);T('Cyt b₆f (Dimer)',-100,-34,'#e6f2e8',12);T('Häm',-100,3,'#ffb0a8',8);
+ rr(65,-30,70,62,14,'#c25f9a','#f0a8d2',1.8);rr(70,-24,28,50,8,'#a94f86');rr(102,-24,28,50,8,'#d472ae');ci(100,0,6,'#ffd7ef');ci(124,-36,9,'#e48fc0','#f0a8d2',1.5);T('PS I',100,-38,'#e6f2e8',12);T('PsaC',134,-42,'#f0a8d2',8,'left');
+ rr(139,-22,20,44,8,'#3f8f4a','#9be28a',1.5);[-10,10].forEach(y=>ci(149,y,4,'#2d7a4a','#9be28a',1));T('LHC I',149,-28,'#9be28a',9);
+ x.save();x.translate(300,0);atpS(1);x.restore();
+ T('ATP-Synthase',300,-92,'#e6f2e8',12);T('F₁',336,-52,'#ffc78f',10,'left');T('F₀',326,22,'#ffc78f',10,'left');
+ ci(216,-118,13,'#e0873c','#ffc78f',2);T('FNR (NADP⁺-Reduktase)',216,-138,'#ffc78f',9);
+ parts(T)}
 function L3a(){x.save();x.scale(4,4);cu*=4;x.translate(0,16);
  atpS(1);TP.forEach(p=>ci(p.x-300,60-84*p.t,2,'#ff7a6b','#fff',.5));
  for(let k=0;k<8;k++)ci(-38+k*11,40+Math.sin(lt+k)*6,1.8,'#ff7a6b');
  tx('F₁ (α₃β₃)',30,-58,'#ffc78f',10,'left');tx('γ-Stiel dreht',30,-45,'#fff',9,'left');tx('F₀ (c-Ring)',22,22,'#ffc78f',10,'left');tx('H⁺',-24,26,'#ff9f94',10);
- tx('ADP + Pᵢ → ATP',0,-88,'#e6f2e8',11);tx('Stroma',-42,-108,'#8fb3a6',10,'left');tx('Lumen',-42,110,'#f5d36b',10,'left');x.restore();cu/=4}
+ tx('ADP + Pᵢ → ATP',0,-88,'#e6f2e8',11);ci(-45,-62,5,'#ffb86b','#fff',.5);tx('Pᵢ',-45,-70,'#ffb86b',10);tx('Stroma',-42,-108,'#8fb3a6',10,'left');tx('Lumen',-42,110,'#f5d36b',10,'left');x.restore();cu/=4}
 function L3c(){x.save();x.scale(4,4);cu*=4;
  rr(-28,-26,26,54,10,'#4aa3c7','#a5e0f5',1.5);rr(2,-26,26,54,10,'#4aa3c7','#a5e0f5',1.5);
  [[-15,-8],[-15,8],[15,-8],[15,8]].forEach(a=>ci(a[0],a[1],3,'#d94f4f','#fff',.5));ci(0,34,8,'#6bbfe0','#a5e0f5',1);
- const r=.4+2*(M.jl+M.jc);for(let k=0;k<3;k++){const q=(lt*r+k/3)%1;ci(-38+q*22,-6+q*14,2,'#9fe6ff');ci(-14+k*14,14+q*34,1.8,`rgba(255,122,107,${1-q})`);ci(15+q*24,12+q*24,2,'#ffe45c')}
- tx('Cyt b₆f',0,-34,'#e6f2e8',12);tx('Häm',0,-2,'#ffb0a8',9);tx('PQH₂ → PQ',-40,-14,'#9fe6ff',9,'left');tx('H⁺ ins Lumen',0,58,'#ff9f94',10);tx('e⁻ → PC',42,38,'#ffe45c',10);x.restore();cu/=4}
+ const r=.4+2*(M.jl+M.jc);for(let k=0;k<3;k++){const q=(lt*r+k/3)%1;ci(-38+q*22,-6+q*14,2,'#9fe6ff');ci(-14+k*14,14+q*34,1.8,`rgba(255,122,107,${1-q})`);ci(15+q*77,10+q*56,2,'#ffe45c');const pp=(q+.5)%1;ci(107+pp*93,64-pp*64,2,'#ffe45c')}
+ tx('Cyt b₆f',0,-34,'#e6f2e8',12);tx('Häm',0,-2,'#ffb0a8',9);tx('PQH₂ → PQ',-40,-14,'#9fe6ff',9,'left');tx('H⁺ ins Lumen',0,58,'#ff9f94',10);ci(100,70,9,'#ffd7ef','#fff',.5);ci(100,70,3,'#d9894a');tx('e⁻ → PC',64,30,'#ffe45c',10);tx('PC',100,54,'#ffd7ef',10);x.restore();cu/=4}
 function L3bbd(){x.beginPath();x.ellipse(0,0,190,150,0,0,TAU);x.fillStyle='#c25f9a88';x.fill();x.strokeStyle='#f0a8d2';x.lineWidth=3/cu;x.stroke()}
 function L3b(){
  AN.forEach(a=>ci(a[0],a[1]-10,11,'#2d7a4a','#9be28a',2));
  PU.forEach(p=>{const a=AN[(p.a*7|0)%12],q=p.t;ci(a[0]*(1-q),(a[1]-10)*(1-q)-10*q,5,col())});
- ci(0,-10,22+pz*8,pz>0?'#fff':'#ffd7ef','#e6f2e8',2);tx('P700',0,-6,'#06201d',12);
- ci(120,-120,12,'#ffb86b');tx('Fd',138,-116,'#ffb86b',11,'left');ci(0,135,10,'#ffd7ef');tx('PC (Lumen)',16,139,'#ffd7ef',11,'left');
- for(let k=0;k<3;k++){const q=(lt*(.3+ph*2)+k/3)%1;ci(120*q,-10-110*q,3.5,'#ffe45c');ci(0,125-q*115,3.5,'#ffe45c')}
+ ci(0,-10,22+pz*8,pz>0?'#fff':'#ffd7ef','#e6f2e8',2);tx('P700',0,-10,'#06201d',12,'center','middle');
+ ci(120,-120,12,'#ffb86b');tx('Fd',138,-116,'#ffb86b',11,'left');ci(-150,98,10,'#ffd7ef');tx('PC (Lumen)',-150,122,'#ffd7ef',11);
+ for(let k=0;k<3;k++){const q=(lt*(.3+ph*2)+k/3)%1;ci(120*q,-10-110*q,3.5,'#ffe45c');ci(-140+q*118,92-q*88,3.5,'#ffe45c')}
  tx('Antennenchlorophylle (LHC I)',0,-132,'#e6f2e8',11);tx('Licht',-150,-150,col(),12);photon(-150,-140,22,.9)}
 const AN=[...Array(12)].map((_,i)=>[Math.cos(i*.52)*(105+(i%3)*18)*(1+(i%2)*.1),Math.sin(i*.52)*(75+(i%3)*14)]);
 function L3bd(){x.beginPath();x.ellipse(0,0,190,150,0,0,TAU);x.fillStyle='#4d3d8f88';x.fill();x.strokeStyle='#c6b5ff';x.lineWidth=3/cu;x.stroke()}
 function L3(){
  AN.forEach((a,i)=>{ci(a[0],a[1]-10,11,'#2d7a4a','#9be28a',2)});
  PU.forEach(p=>{const a=AN[(p.a*7|0)%12],q=p.t;ci(a[0]*(1-q),(a[1]-10)*(1-q)-10*q,5,col())});
- ci(0,-10,22+pz*8,pz>0?'#fff':'#9be28a','#e6f2e8',2);tx('P680',0,-6,'#06201d',12);
+ ci(0,-10,22+pz*8,pz>0?'#fff':'#9be28a','#e6f2e8',2);tx('P680',0,-10,'#06201d',12,'center','middle');ci(112,100,7,'#9fe6ff');ci(103,108,3.5,'#fff');ci(121,108,3.5,'#fff');tx('H₂O',112,124,'#9fe6ff',10);
  tx('Antennenchlorophylle + Carotinoide',0,-128,'#e6f2e8',12);
  [[-24,95],[0,105],[24,95],[0,80]].forEach((a,i)=>ci(a[0],a[1],8,'#e08a3c','#ffc78f',1.5));tx('Mn₄CaO₅ (Wasserspaltung)',0,128,'#ffc78f',11);
  tx('2 H₂O → O₂ + 4 H⁺ + 4 e⁻',0,144,'#9fe6ff',11);tx('e⁻ →',120,-6,'#ffe45c',13);tx('PQ',150,10,'#9fe6ff',11);
  for(let k=0;k<3;k++){const q=(lt*.7+k/3)%1;ci(0,92-q*80,3.5,'#ffe45c')}
  tx('Licht',-150,-150,col(),12);photon(-150,-140,22,.9)}
+const ATM=[],BND=[],RA={Mg:19,N:10,O:10,C:9},SO={Mg:110,N:72,O:72,C:72},ACOL={Mg:'#9be28a',N:'#3b6fd6',O:'#e0584f',C:'#8f9f9a'};
+{const rot=(a,b,k)=>{for(let i=0;i<k;i++){const t=a;a=-b;b=t}return[a,b]};const add=(a,b,e)=>ATM.push([a,b,e])-1;
+ const mg=add(0,0,'Mg'),T0=[[40,0,'N'],[56.4,-22.6,'C'],[56.4,22.6,'C'],[83.1,-14,'C'],[83.1,14,'C']],RG=[];
+ for(let k=0;k<4;k++){const d=T0.map(t=>{const[a,b]=rot(t[0],t[1],k);return add(a,b,t[2])});RG.push(d);BND.push([mg,d[0]],[d[0],d[1]],[d[0],d[2]],[d[1],d[3]],[d[2],d[4]],[d[3],d[4]])}
+ for(let k=0;k<4;k++){const[a,b]=rot(45,45,k),m=add(a,b,'C');BND.push([RG[k][2],m],[m,RG[(k+1)%4][1]])}
+ const c1=add(-14,111,'C'),o1=add(-38,124,'O'),o2=add(10,124,'O'),c2=add(10,152,'C');BND.push([RG[1][4],c1],[c1,o1],[c1,o2],[o2,c2]);
+ let pv=c2;for(let i=1;i<=8;i++){const c=add(10+i*20,152+(i%2?14:0),'C');BND.push([pv,c]);pv=c}}
+const KA=ATM.map(a=>[9,a[0],a[1],RA[a[2]]/SO[a[2]],1,a[2]]);
+let cs={s:0,t:0},csF=-1;const CD=[.3,.8,1,1];
 function L4(){
- const P=[[-54,-54],[54,-54],[54,54],[-54,54]];
- P.forEach(p=>ci(p[0],p[1],36,'#1f5a3a66','#7fd08a',3));
- [[-40,0],[40,0],[0,-40],[0,40]].forEach(n=>{ln(0,0,n[0],n[1],'#a5e0f5',2);ci(n[0],n[1],10,'#3b6fd6','#a5e0f5',1.5)});
- ci(0,0,19,'#9be28a','#fff',2);tx('Mg',0,5,'#06201d',13);tx('N',46,-48,'#a5e0f5',11);
- x.beginPath();x.moveTo(54,54);for(let k=1;k<=10;k++)x.lineTo(54+k*9+(k%2?-10:10),54+k*12);x.strokeStyle='#8fb3a6';x.lineWidth=3/cu;x.stroke();
- tx('Phytolschwanz',100,168,'#8fb3a6',11);tx('(verankert in der Membran)',100,181,'#8fb3a6',10);
- const sp=.3+ph*2;for(let k=0;k<12;k++){const a=lt*sp+k/12*TAU;ci(Math.cos(a)*100,Math.sin(a)*100,3.5,'#ffe45c')}
- x.beginPath();x.arc(0,0,100,0,TAU);x.strokeStyle=`rgba(255,228,92,${.2+ph*.5})`;x.lineWidth=(2+ph*6)/cu;x.stroke();
- tx('π-Elektronensystem',0,-125,'#ffe45c',12);photon(-150,-150+((lt*80)%90),18,.9);tx('Porphyrinring mit Mg²⁺',0,140,'#e6f2e8',12)}
+ BND.forEach(b=>ln(ATM[b[0]][0],ATM[b[0]][1],ATM[b[1]][0],ATM[b[1]][1],'#a5c4bd',2));
+ ATM.forEach(a=>{const r=RA[a[2]];ci(a[0],a[1],r,ACOL[a[2]],'#fff',1);if(cu*r>5)tx(a[2],a[0],a[1],'#06201d',clamp(r*cu*1.05,8,30),'center','middle')});
+ if(csF!=FRM){csF=FRM;cs.t+=dtG;if(cs.t>CD[cs.s]){cs.t=0;if(cs.s)cs.s=(cs.s+1)%4;else if(Math.random()<ph*.1+.004)cs.s=1}}
+ const s=cs.s,q=Math.min(1,cs.t/CD[s]),ez=q*q*(3-2*q),a0=lt*(.3+ph*2),P=a=>[Math.cos(a)*105,Math.sin(a)*105],h=P(a0),AC=[215,-125],DN=[-205,125],mv=(u,v)=>[u[0]+(v[0]-u[0])*ez,u[1]+(v[1]-u[1])*ez];
+ for(let k=s?1:0;k<12;k++){const p=P(a0+k/12*TAU);ci(p[0],p[1],3.5,'#ffe45c')}
+ x.beginPath();x.arc(0,0,105,0,TAU);x.strokeStyle=`rgba(255,228,92,${.2+ph*.5+(s==1?.4:0)})`;x.lineWidth=(2+ph*6)/cu;x.stroke();
+ ci(AC[0],AC[1],15,'#9fe6ff88','#9fe6ff',1.5);tx('Pheophytin',AC[0],AC[1]-24,'#9fe6ff',10);tx('(Akzeptor)',AC[0],AC[1]-12,'#9fe6ff',10);
+ ci(DN[0],DN[1],15,'#ffd7ef88','#ffd7ef',1.5);tx('Donor',DN[0],DN[1]+28,'#ffd7ef',10);tx('(Mn-Cluster / PC)',DN[0],DN[1]+40,'#ffd7ef',10);
+ if(s==1){x.beginPath();for(let k=0;k<=50*Math.min(1,q*1.5);k++){const t=k/50;x.lineTo(-170+(h[0]+170)*t+Math.sin(k*.9)*3,-170+(h[1]+170)*t+Math.cos(k*.9)*3)}x.strokeStyle=col();x.lineWidth=2/cu;x.stroke();ci(h[0],h[1],9,'#ffe45c55');ci(h[0],h[1],4.5,'#fff','#ffe45c',1.5);tx('e⁻*',h[0]*1.18,h[1]*1.18,'#ffe45c',11)}
+ if(s>=2){const g=x.globalAlpha;x.globalAlpha=g*(s==3?1-ez:1);ci(h[0],h[1],6,null,'#ff7a6b',1.8);tx('+',h[0],h[1],'#ff7a6b',14,'center','middle');x.globalAlpha=g}
+ if(s==2){const p=mv(h,AC);ci(p[0],p[1],5,'#ffe45c','#fff',1.5);tx('e⁻ → Akzeptor',p[0],p[1]+16,'#ffe45c',11)}
+ if(s==3){const p=mv(DN,h);ci(p[0],p[1],5,'#ffe45c','#fff',1.5);tx('e⁻ vom Donor',p[0],p[1]-12,'#ffe45c',11)}
+ tx('π-Elektronensystem',0,-125,'#ffe45c',12);tx('Esterbrücke',-50,142,'#ffb0a8',10);tx('Phytolkette (verkürzt)',100,190,'#8fb3a6',11);tx('Wasserstoffatome nicht gezeigt',0,-142,'#8fb3a6',10);
+ tx(['Grundzustand','Photon absorbiert: π-Elektron angeregt (Chl*)','Elektron wandert zum Akzeptor: Chl⁺• (Loch, +)','Donor füllt das Elektronenloch auf'][s],0,-160,'#ffb86b',11);tx('Mg²⁺ bleibt unverändert',0,-178,'#9be28a',11)}
 let st={s:0,t:0};
-function L5(){
- [38,72,110].forEach((r,i)=>{ci(0,0,r,null,'#ffffff44',1);});
- tx('K',0,-43,'#8fb3a6',10);tx('L',0,-77,'#8fb3a6',10);tx('M (angeregt)',0,-115,'#ffb86b',10);
- ci(0,0,15,'#ff9f6b','#fff',2);tx('Mg',0,4,'#06201d',11);
- for(let k=0;k<2;k++){const a=lt*3+k*Math.PI;ci(Math.cos(a)*38,Math.sin(a)*38,4,'#9fe6ff')}
- for(let k=0;k<7;k++){const a=lt*1.5+k/7*TAU;ci(Math.cos(a)*72,Math.sin(a)*72,4,'#9fe6ff')}
- const dt=.016;st.t+=dt;let r=72,ex=0,xx;
- if(st.s==0&&st.t>.15){st.t=0;if(Math.random()<ph*.12+.003)st={s:1,t:0}}
- if(st.s==1){photon(-160+st.t*400,-30,0,0);x.beginPath();x.moveTo(-160,-20);for(let k=0;k<=70;k++)x.lineTo(-160+k*2.2,-20+Math.sin(k*.9)*3);x.strokeStyle=col();x.lineWidth=2/cu;x.stroke();tx('hν',-150,-32,col(),12);if(st.t>.5)st={s:2,t:0}}
- if(st.s==2){r=72+38*Math.min(1,st.t/.4);if(st.t>1)st={s:3,t:0}}
- if(st.s==3){r=110;xx=110+st.t*300;if(st.t>.45)st={s:0,t:0}}
- const a=lt*(st.s>=2?2:1.5);const X=st.s==3?xx:Math.cos(a)*r,Y=st.s==3?-20*st.t:Math.sin(a)*r;
- ci(X,Y,6,st.s>=2?'#ffe45c':'#9fe6ff','#fff',1.5);if(st.s>=2)tx(st.s==3?'e⁻ → Akzeptor':'e⁻*',X,Y-12,'#ffe45c',11);
- tx('Elektron: Grundzustand → angeregter Zustand',0,150,'#e6f2e8',11)}
+const EL={Mg:['Mg²⁺','Magnesium',15,[2,8],'#ff9f6b'],N:['N','Stickstoff',13,[2,5],'#3b6fd6'],O:['O','Sauerstoff',13,[2,6],'#e0584f'],C:['C','Kohlenstoff',13,[2,4],'#8f9f9a']};
+const SH='KLMN',rS=i=>36+28*i,sp=[3,1.5,1,.8],SD=[.2,.6,.8,.9,.7,.9],SX=['Grundzustand','Photon trifft ein π-Elektron','Das Elektron springt auf eine höhere Schale','Es verlässt das Atom Richtung Akzeptor','Zurück bleibt ein Elektronenloch (+)','Ein Donor-Elektron füllt das Loch auf'],
+EX={Mg:'Mg²⁺ gibt kein Elektron ab (volle Schalen)',O:'O gehört nicht zum π-System: keine Anregung',H:'H ist nicht an der Elektronenabgabe beteiligt',P:'P bleibt im Phosphat unverändert',S:'S bindet das Eisen im Fe₂S₂-Cluster',Ca:'Ca²⁺ stabilisiert den Mn-Cluster',Mn:'Mn: Wechsel +3/+4, speichert Elektronen aus H₂O',Fe:'Fe²⁺ ⇄ Fe³⁺: überträgt Elektronen',Cu:'Cu⁺ ⇄ Cu²⁺: überträgt Elektronen zu PS I'};
+function L5(){const e=EL[AX]||EL.Mg,sh=e[3],ns=sh.length,lo=ns-1,n=sh[lo],act=AX=='C'||AX=='N',s=act?st.s:0,q=Math.min(1,st.t/SD[st.s]),ez=q*q*(3-2*q);
+ for(let i=0;i<=ns;i++)if(i<ns||act){ci(0,0,rS(i),null,i<ns?'#ffffff44':'#ffb86b55',1);tx(SH[i]+(i<ns?'':' (angeregt)'),0,-rS(i)-5,i<ns?'#8fb3a6':'#ffb86b',10)}
+ ci(0,0,e[2],e[4],'#fff',2);tx(e[0],0,0,'#06201d',clamp(e[2]*cu*1.1,9,34),'center','middle');
+ if(stF!=FRM){stF=FRM;st.t+=dtG;if(st.t>SD[st.s]){st.t=0;if(st.s)st.s=(st.s+1)%6;else if(act&&Math.random()<ph*.12+.004)st.s=1}}
+ const ha=lt*sp[lo]+(n-1)/n*TAU,hp=[Math.cos(ha)*rS(lo),Math.sin(ha)*rS(lo)],mp=[Math.cos(ha)*rS(ns),Math.sin(ha)*rS(ns)],mv=(u,v)=>[u[0]+(v[0]-u[0])*ez,u[1]+(v[1]-u[1])*ez];
+ sh.forEach((c,i)=>{const m=i==lo&&s>=2?c-1:c;for(let k=0;k<m;k++){const a=lt*sp[i]+k/c*TAU;ci(Math.cos(a)*rS(i),Math.sin(a)*rS(i),4,'#9fe6ff')}});
+ const hole=al=>{const g=x.globalAlpha;x.globalAlpha=g*al;ci(hp[0],hp[1],5.5,null,'#ff7a6b',1.8);tx('+',hp[0]*1.3,hp[1]*1.3,'#ff7a6b',13,'center','middle');x.globalAlpha=g},el5=p=>ci(p[0],p[1],6,'#ffe45c','#fff',1.5);
+ if(act){
+  if(s==1){x.beginPath();for(let k=0;k<=50*Math.min(1,q*1.5);k++){const t=k/50;x.lineTo(-170+(hp[0]+170)*t+Math.sin(k*.9)*3,-20+(hp[1]+20)*t+Math.cos(k*.9)*3)}x.strokeStyle=col();x.lineWidth=2/cu;x.stroke();tx('hν',-160,-34,col(),12);ci(hp[0],hp[1],8,'#ffe45c55')}
+  if(s==2){const r=rS(lo)+(rS(ns)-rS(lo))*ez,p=[Math.cos(ha)*r,Math.sin(ha)*r];el5(p);tx('e⁻*',p[0]*1.15,p[1]*1.15,'#ffe45c',11);hole(1)}
+  if(s==3){const p=mv(mp,[250,-40]);el5(p);tx('e⁻ → Akzeptor',p[0],p[1]-12,'#ffe45c',11);hole(1)}
+  if(s==4){hole(1);tx('Elektronenloch (+)',hp[0]*1.5,hp[1]*1.5,'#ff7a6b',11)}
+  if(s==5){const p=mv([-250,40],hp);el5(p);tx('e⁻ vom Donor',p[0],p[1]-12,'#ffe45c',11);hole(1-ez)}}
+ const y0=(act?rS(ns):rS(lo))+30;tx(e[1]+' ('+sh.join(' / ')+' Elektronen)',0,y0,'#e6f2e8',11);
+ tx(act?SX[st.s]:(EX[AX]||'bleibt im Molekül unverändert'),0,y0+16,act?'#ffe45c':'#ffb86b',11);if(AX=='Mg')tx('Das e⁻ stammt aus dem π-System (C, N)',0,y0+32,'#8fb3a6',10)}
 
 const GR=[[-150,-30],[-70,45],[-60,-75],[25,-10],[110,-60],[120,45]],RB=[];
 {let sd=7;const rn=()=>(sd=(sd*16807)%2147483647)/2147483647;while(RB.length<42){const a=rn()*TAU,r=Math.sqrt(rn()),X=Math.cos(a)*r*205,Y=Math.sin(a)*r*122,z=rn()*3;if(GR.some(g=>Math.abs(X-g[0])<36&&Math.abs(Y-g[1])<36)||Math.hypot(X-165,Y+12)<42)continue;RB.push([X,Y,z])}}
 const TL=[-3,-2,-1,0,1,2].map(t=>t*48+24),K1=[];
 for(let k=0;k<6;k++)for(const s of[-1,1])for(const t of TL)K1.push([2,t,-115+k*46+s*15,.06,-s]);
-const K2=[[3,-300,0,.2],[4,-100,0,.25],[5,100,0,.2],[6,300,-16,.25]],K3=AN.map(a=>[7,a[0],a[1]-10,.11]);
+const K2=[[3,0,0,1]];const PZ=[[-376,-252],[-136,-64],[57,167],[274,326]];for(let i=-400;i<=400;i+=10)if(!PZ.some(z=>i>=z[0]&&i<=z[1]))K2.push([16,i,-9.5,.032],[16,i,9.5,.032,-1]),KC=[[4,-300,0,.2],[5,-100,0,.25],[6,100,0,.2],[7,300,-16,.25],[10,216,-118,.09],[23,-353,0,.2],[23,149,0,.17]],K3=AN.map(a=>[8,a[0],a[1]-10,.11]);
 const N=[{f:L0,w:500,h:340,k:GR.map(g=>[1,g[0],g[1],.19])},
 {f:L1,w:340,h:300,k:K1},
-{f:L2,bd:L2bd,w:800,h:512,k:K2},
-{f:L3,bd:L3bd,w:400,h:330,k:K3},
-{f:L3c,w:300,h:300},
-{f:L3b,bd:L3bbd,w:400,h:330,k:K3},
-{f:L3a,w:320,h:560},
-{f:L4,w:360,h:360,k:[[8,0,0,.17]]},
+{f:L2,bd:L2bd,bf:[14,34],w:800,h:512,k:K2},
+{f:Lc,w:860,h:320,fw:420,fh:300,pa:1.4,pb:2.2,k:KC},
+{f:L3,bd:L3bd,pa:1.5,pb:2.3,w:400,h:330,k:[...K3,[17,0,95,.3],[22,112,100,.12]]},
+{f:L3c,pa:1.5,pb:2.3,w:800,h:800,fw:300,fh:300,k:[[18,-60,-32,.11],[21,400,280,.33]]},
+{f:L3b,bd:L3bbd,pa:1.5,pb:2.3,w:400,h:330,k:[...K3,[21,-150,98,.1]]},
+{f:L3a,pa:1.5,pb:2.3,w:320,h:560,k:[[20,-180,-184,.25]]},
+{f:L4,w:420,h:420,k:KA},
 {f:L5,w:320,h:320}];
-const PL=[];
-function place(id){if(PL[id])return PL[id];const P=[[0],[0,1],[0,1,2],[0,1,2,3],[0,1,2,4],[0,1,2,5],[0,1,2,6],[0,1,2,3,7],[0,1,2,3,7,8]][id];let o={x:0,y:0,sc:1,f:1};
- for(let i=1;i<P.length;i++){const c=N[P[i-1]].k.filter(c=>c[0]==P[i]&&(c[4]||1)>0).sort((a,b)=>a[1]*a[1]+a[2]*a[2]-b[1]*b[1]-b[2]*b[2])[0];o={x:o.x+o.sc*c[1],y:o.y+o.sc*o.f*c[2],sc:o.sc*c[3],f:o.f*(c[4]||1)}}return PL[id]=o}
+const el=(X,Y,a,b,r,f,sk,w)=>{x.beginPath();x.ellipse(X,Y,a,b,r||0,0,TAU);if(f){x.fillStyle=f;x.fill()}if(sk){x.strokeStyle=sk;x.lineWidth=(w||1)/cu;x.stroke()}};
+Object.assign(RA,{H:6,P:13,S:13,Ca:19,Mn:16,Fe:16,Cu:16});
+Object.assign(ACOL,{H:'#e6f2e8',P:'#ff9f40',S:'#e6d34a',Ca:'#7fd0d0',Mn:'#b07fe0',Fe:'#d9693a',Cu:'#d9894a'});
+Object.assign(EL,{H:['H','Wasserstoff',8,[1],'#e6f2e8'],P:['P','Phosphor',15,[2,8,5],'#ff9f40'],S:['S','Schwefel',15,[2,8,6],'#e6d34a'],Ca:['Ca²⁺','Calcium',17,[2,8,8],'#7fd0d0'],Mn:['Mn','Mangan',16,[2,8,13,2],'#b07fe0'],Fe:['Fe','Eisen',16,[2,8,14,2],'#d9693a'],Cu:['Cu','Kupfer',16,[2,8,18,1],'#d9894a']});
+const rl=e=>36+28*(EL[e][3].length-1);
+function molNode(ttl,A,B,w,h){return{f(){B.forEach(b=>ln(A[b[0]][0],A[b[0]][1],A[b[1]][0],A[b[1]][1],'#a5c4bd',3));A.forEach(a=>{const r=RA[a[2]];ci(a[0],a[1],r,ACOL[a[2]],'#fff',1.5);if(cu*r>5)tx(a[2],a[0],a[1],'#06201d',clamp(r*cu*1.05,8,32),'center','middle')});tx(ttl,0,-h/2+12,'#e6f2e8',12)},w,h,k:A.map(a=>[9,a[0],a[1],RA[a[2]]/rl(a[2]),1,a[2]])}}
+function ringMol(c){const A=[],B=[],ro=(a,b,k)=>{for(let i=0;i<k;i++){const t=a;a=-b;b=t}return[a,b]},ad=(a,b,e)=>A.push([a,b,e])-1,m=ad(0,0,c),T=[[40,0,'N'],[56.4,-22.6,'C'],[56.4,22.6,'C'],[83.1,-14,'C'],[83.1,14,'C']],R=[];
+ for(let k=0;k<4;k++){const d=T.map(t=>{const[a,b]=ro(t[0],t[1],k);return ad(a,b,t[2])});R.push(d);B.push([m,d[0]],[d[0],d[1]],[d[0],d[2]],[d[1],d[3]],[d[2],d[4]],[d[3],d[4]])}
+ for(let k=0;k<4;k++){const[a,b]=ro(45,45,k),q=ad(a,b,'C');B.push([R[k][2],q],[q,R[(k+1)%4][1]])}return[A,B]}
+const LA=[[0,-144,'C'],[30,-127,'O'],[30,-93,'C'],[0,-76,'C'],[-30,-93,'C'],[-30,-127,'C'],[-60,-144,'C'],[-60,-176,'O'],[0,-46,'O'],[0,-16,'C'],[-30,8,'C'],[30,8,'C']],LB=[[0,1],[1,2],[2,3],[3,4],[4,5],[5,0],[5,6],[6,7],[3,8],[8,9],[9,10],[9,11]];
+for(const sg of[-1,1]){const b=LA.length;LA.push([sg*30,40,'O'],[sg*30,70,'C'],[sg*60,70,'O']);LB.push([sg<0?10:11,b],[b,b+1],[b+1,b+2]);let p=b+1;for(let i=0;i<5;i++){LA.push([sg*(i%2?12:30),98+i*26,'C']);LB.push([p,LA.length-1]);p=LA.length-1}}
+const HM=ringMol('Fe');
+function LLeaf(){
+ x.beginPath();x.moveTo(-230,0);x.bezierCurveTo(-160,-135,70,-150,240,0);x.bezierCurveTo(70,150,-160,135,-230,0);x.fillStyle='#2f7d43';x.fill();x.strokeStyle='#7fd08a';x.lineWidth=3/cu;x.stroke();
+ for(let i=0;i<7;i++){const X=-170+i*52,L=62-Math.abs(X-10)*.2;ln(X,0,X+52,-L,'#9bd18a',2);ln(X,0,X+52,L,'#9bd18a',2)}
+ ln(-262,0,240,0,'#c9e8b0',5);
+ x.setLineDash([5/cu,4/cu]);x.strokeStyle='#ffe45c';x.lineWidth=1.5/cu;x.strokeRect(-49,-46,58,36);x.setLineDash([]);
+ tx('Querschnitt',-20,-52,'#ffe45c',11);tx('Blattspreite',70,-95,'#e6f2e8',12);tx('Mittelrippe',110,16,'#c9e8b0',11);tx('Blattstiel',-250,18,'#c9e8b0',11);tx('Seitenadern',-60,100,'#9bd18a',11);
+ for(let k=0;k<5;k++)photon(-150+k*80,((lt*70*S.light/100+k*55)%320)-190,16,.7)}
+function LSec(){
+ rr(-240,-150,480,300,0,'#0b2624');
+ rr(-240,-141,390,5,2,'#d9c27a');tx('Kutikula',160,-134,'#d9c27a',9,'left');
+ for(let i=0;i<6;i++)rr(-238+i*65,-134,61,24,5,'#6fa57a44','#9be28a',1.2);tx('Epidermis',160,-118,'#9be28a',9,'left');
+ for(let i=0;i<8;i++){const X=-240+i*49;rr(X,-104,44,92,12,'#3f8f4a33','#7fd08a',1.2);for(let k=0;k<4;k++)el(X+(k%2?30:14),-90+k*21,7,4.5,0,'#2f9a4a')}
+ tx('Palisaden-',160,-62,'#9be28a',9,'left');tx('gewebe',160,-51,'#9be28a',9,'left');
+ x.save();x.beginPath();x.rect(-240,-150,387,300);x.clip();for(let r=0;r<3;r++)for(let i=0;i<8;i++){const X=-215+i*52+(r%2?26:0),Y=16+r*34;if(r==2&&X>60&&X<140||nv(X,Y))continue;el(X,Y,24,16,0,'#3f8f4a22','#7fd08a',1.2);el(X-6,Y-3,6,4,0,'#2f9a4a');el(X+8,Y+3,6,4,0,'#2f9a4a')}x.restore();
+ tx('Schwamm-',160,14,'#9be28a',9,'left');tx('gewebe',160,25,'#9be28a',9,'left');tx('Luftraum',100,62,'#8fb3a6',9);
+ el(-130,34,38,33,0,'#14414d','#d9e3d0',2);ci(-143,24,9,'#5fb0e0','#fff',1);ci(-120,22,9,'#5fb0e0','#fff',1);ci(-128,44,10,'#f0b060','#fff',1);tx('Leitbündel',-130,82,'#e6f2e8',10);
+ for(let i=0;i<5;i++)rr(-238+i*56,100,52,12,4,'#6fa57a44','#9be28a',1.2);rr(42,100,46,12,4,'#6fa57a44','#9be28a',1.2);rr(112,100,34,12,4,'#6fa57a44','#9be28a',1.2);
+ rr(-240,112.6,328,2,1,'#d9c27a');rr(112,112.6,35,2,1,'#d9c27a');el(92.8,106,6.8,8,0,'#4aa65a','#cfeec0',1.2);el(107.2,106,6.8,8,0,'#4aa65a','#cfeec0',1.2);
+ tx('Stoma',100,132,'#e6f2e8',10);tx('Epidermis',160,106,'#9be28a',9,'left');tx('Kutikula',160,120,'#d9c27a',9,'left');
+ for(let k=0;k<4;k++)photon(-190+k*75,((lt*80*S.light/100+k*40)%55)-200,16,.7)}
+function LLhc(){rr(-65,-130,130,260,34,'#3f8f4a','#9be28a',6);
+ [-70,0,70].forEach((y,i)=>{el(-24,y,16,34,0,'#2d7a4a','#9be28a',3);el(24,y,16,34,0,'#2d7a4a','#9be28a',3);ci(0,y,11,'#7fd08a','#e6f2e8',2);ci(-24,y-14,7,'#e0873c','#ffc78f',1.5);ci(24,y+14,7,'#e0873c','#ffc78f',1.5)});
+ tx('Chlorophyll a/b',0,-142,'#e6f2e8',11);tx('Carotinoide',0,152,'#ffc78f',11)}
+function LCell(){
+ rr(-100,-210,200,420,40,'#2f7a4a33','#c9e8a0',5);rr(-93,-203,186,406,34,'#1f5a4a66','#e6f2e8',1.5);
+ rr(-30,-150,60,300,28,'#2a6f8f99','#9fe6ff',2);tx('Vakuole',0,0,'#cfeaff',11);
+ el(0,186,22,17,0,'#8a6fd2','#c6b5ff',2);ci(0,186,7,'#c6b5ff');tx('Zellkern',30,190,'#c6b5ff',10,'left');
+ el(-4,-184,22,9,.2,'#e0873c','#ffc78f',1.5);tx('Mitochondrium',30,-182,'#ffc78f',9,'left');
+ [[-62,-150],[-62,-60],[-62,30],[-62,120],[62,-105],[62,-15],[62,75],[62,150]].forEach(p=>chlH(p[0],p[1],31,21));
+ tx('Zellwand',0,-217,'#c9e8a0',10);tx('Chloroplasten',-62,-176,'#9be28a',9)}
+function chlH(X,Y,a,b){el(X,Y,a,b,0,'#2f7a4a','#7fd08a',1.5);for(let k=-1;k<2;k++)rr(X+k*a*.45-a*.11,Y-b*.38,a*.22,b*.76,1.5,'#4aa65a')}
+function LCellS(){el(0,0,150,100,0,'#2f7a4a33','#c9e8a0',5);el(0,0,141,91,0,'#1f5a4a66','#e6f2e8',1.5);
+ el(0,0,112,62,0,'#2a6f8f99','#9fe6ff',2);tx('Vakuole',62,-32,'#cfeaff',11);
+ el(-100,35,24,18,0,'#8a6fd2','#c6b5ff',2);ci(-100,35,7,'#c6b5ff');tx('Zellkern',-72,62,'#c6b5ff',10,'left');
+ el(-92,-46,13,8,0,'#e0873c','#ffc78f',1.5);tx('Mitochondrium',-92,-33,'#ffc78f',8);
+ chlH(-37.5,-18.75,37.5,25);chlH(50,18.75,37.5,25);
+ tx('Zellwand',0,-108,'#c9e8a0',11);tx('Chloroplasten',-37.5,-50,'#9be28a',9)}
+function LSto(){const g=3+15*Math.min(1,ph*1.3),cx=34+g/2;
+ x.save();x.beginPath();x.rect(-3000,-1500,3235,3000);x.clip();
+ rr(-260,-170,520,340,0,'#0b2624');
+ rr(-1700,-53,1640,10,3,'#d9c27a');rr(60,-53,175,10,3,'#d9c27a');
+ [[-1690,260],[-1410,260],[-1130,260],[-850,260],[-570,260],[-290,230],[60,170]].forEach(c=>rr(c[0],-40,c[1],60,20,'#6fa57a44','#9be28a',1.5));
+ for(let r=0;r<3;r++)for(let i=0;i<8;i++){const X=-215+i*52+(r%2?26:0);if(r==2&&X>60&&X<140)continue;const px=(X-100)*5,py=(104-(16+r*34))*5;
+  el(px,py,120,80,0,'#3f8f4a22','#7fd08a',1.5);el(px,py,111,71,0,null,'#7fd08a55',1);el(px,py,52,32,0,'#2a6f8f55','#9fe6ff55',1);chlH(px-30,py+15,30,20);chlH(px+40,py-15,30,20)}
+ [-1,1].forEach(sg=>{const X=sg*cx;el(X,-10,34,40,0,'#3f9a55','#cfeec0',2.5);ln(sg*(cx-30),-28,sg*(cx-30),10,'#e6f2e8',5);for(let k=0;k<3;k++)chlH(sg*46,-28+k*18,12,7)});
+ for(let k=0;k<7;k++){const q=(lt*.45+k/7)%1,sg=k%2?1:-1;ci(sg*g*.2,-140+q*190,2.8,'#9fe6ff');ci(-sg*g*.2,40-q*190,2.8,k%3?'#e6f2e8':'#8fd0ff')}
+ tx('Außenluft',-150,-125,'#8fb3a6',11);tx('Schließzelle',-110,-70,'#cfeec0',11);tx('Epidermis',-140,-8,'#9be28a',10);tx('Atemhöhle',0,80,'#8fb3a6',11);tx('Mesophyll',-275,160,'#9be28a',10);
+ tx('CO₂ strömt hinein',-110,-100,'#9fe6ff',11);tx('O₂ + H₂O strömen hinaus',100,-100,'#e6f2e8',11);tx('Pore',0,-72,'#ffe45c',10);tx('Kutikula',-400,-62,'#d9c27a',10);x.restore()}
+function LVein(){
+ el(0,0,178,168,0,'#0b2624');
+ for(let k=0;k<12;k++){const a=k/12*TAU+.26;ci(Math.cos(a)*130,Math.sin(a)*120,32,'#3f8f4a55','#b7d98b',2)}
+ el(0,0,112,102,0,'#14414d','#d9e3d0',2);
+ [[-58,-36],[0,-52],[58,-36],[-28,-2],[30,-2]].forEach((p,i)=>{ci(p[0],p[1],22,'#5fb0e0aa','#cfeaff',4);ci(p[0],p[1],14,null,'#cfeaff88',1.5);ci(p[0],p[1],4+1.5*Math.sin(lt*3+i),'#9fe6ff')});
+ [[-50,52],[8,60],[62,46]].forEach(p=>{rr(p[0]-18,p[1]-18,36,36,10,'#f0b060cc','#ffe0a8',2);ln(p[0]-18,p[1]-10,p[0]+18,p[1]-10,'#c9702a',2)});
+ [[-20,36],[42,22],[-78,30]].forEach(p=>ci(p[0],p[1],10,'#c9702a','#ffe0a8',1.5));
+ tx('Xylem: Wasser und Mineralstoffe',0,-196,'#cfeaff',11);tx('Phloem: Zucker (Saccharose)',0,208,'#f0b060',11);tx('Siebröhre',8,92,'#ffe0a8',10);tx('Geleitzelle',-20,56,'#ffe0a8',9);tx('Bündelscheide',-178,-150,'#b7d98b',10,'left')}
+function LFnr(){
+ el(-4,16,98,74,0,'#e0873c55','#ffc78f',3);el(-48,-6,52,52,.3,'#e0873c88','#ffc78f',1.5);el(46,30,52,46,-.3,'#e0873c88','#ffc78f',1.5);
+ [[-26,4],[-8,10],[10,4]].forEach(a=>ci(a[0],a[1],13,'#ffe45c88','#ffe45c',2));tx('FAD',-8,38,'#ffe45c',10);
+ tx('FNR-Enzym',-4,-70,'#ffc78f',13);ci(-150,-70,30,'#ffb86b55','#ffb86b',2);tx('Ferredoxin',-150,-110,'#ffb86b',11);
+ rr(110,76,62,26,8,'#ffc78f44','#ffc78f',1.5);tx('NADP⁺',141,89,'#ffc78f',10,'center','middle');
+ const r=.4+M.jl*1.6,A=[-150,-70],B=[-8,6],C=[132,86];
+ for(let k=0;k<3;k++){const q=(lt*r+k/3)%1,u=q<.5?A:B,v=q<.5?B:C,t=q<.5?q*2:q*2-1;ci(u[0]+(v[0]-u[0])*t,u[1]+(v[1]-u[1])*t,4,'#ffe45c')}
+ tx('e⁻: Fd → FAD → NADP⁺',0,-130,'#ffe45c',11);tx('NADP⁺ + 2 e⁻ + H⁺ → NADPH',0,135,'#e6f2e8',11)}
+N[10]={f:LFnr,w:300,h:300,pa:1.5,pb:2.3,k:[[19,-150,-70,.2]]};
+N[11]={f:LLeaf,w:500,h:340,k:[[12,-20,-28,.12]]};
+const nv=(X,Y)=>((X+130)/64)**2+((Y-34)/51)**2<1;
+const K12=[];
+for(let i=0;i<8;i++){K12.push([13,-218+i*49,-58,.22]);for(let r=0;r<3;r++){const X=-215+i*52+(r%2?26:0);if(r==2&&X>60&&X<140)continue;const Y=16+r*34;if(nv(X,Y)||X+24>147.5)continue;K12.push([24,X,Y,.16])}}
+K12.push([14,100,104,.2,-1],[15,-130,34,.19]);
+N[12]={f:LSec,w:480,h:300,k:K12};
+N[13]={f:LCell,w:200,h:420,pa:1.8,pb:2.8,k:[[0,-62,-150,.125],[0,-62,-60,.125],[0,-62,30,.125],[0,-62,120,.125],[0,62,-105,.125],[0,62,-15,.125],[0,62,75,.125],[0,62,150,.125]]};
+const K14=[];for(const sg of[-1,1])for(let k=0;k<3;k++)K14.push([0,sg*46,-28+k*18,.05]);
+N[14]={f:LSto,w:420,h:300,rad:240,k:K14};
+N[24]={f:LCellS,w:300,h:200,k:[[0,-37.5,-18.75,.16],[0,50,18.75,.16]]};
+N[15]={f:LVein,w:380,h:380};
+N[16]=molNode('Galaktolipid (gekürzt)',LA,LB,200,420);Object.assign(N[16],{pa:6,pb:12});
+N[17]=molNode('Mn₄CaO₅-Cluster',[[-75,-30,'Mn'],[-15,-55,'Mn'],[-20,25,'Mn'],[70,60,'Mn'],[45,-20,'Ca'],[-45,-45,'O'],[-45,-3,'O'],[-17,-15,'O'],[15,-45,'O'],[35,15,'O']],[[0,5],[5,1],[0,6],[6,2],[1,7],[2,7],[7,4],[1,8],[8,4],[2,9],[9,4],[9,3]],240,200);
+N[18]=molNode('Häm (Fe)',HM[0],HM[1],240,240);
+N[19]=molNode('Fe₂S₂-Cluster',[[-45,0,'Fe'],[45,0,'Fe'],[0,-40,'S'],[0,40,'S'],[-100,-45,'S'],[-100,45,'S'],[100,-45,'S'],[100,45,'S'],[-135,-70,'C'],[-135,70,'C'],[135,-70,'C'],[135,70,'C']],[[0,2],[0,3],[1,2],[1,3],[0,4],[0,5],[1,6],[1,7],[4,8],[5,9],[6,10],[7,11]],300,200);
+N[20]=molNode('Phosphat (Pᵢ)',[[0,0,'P'],[-45,-35,'O'],[45,-35,'O'],[-45,35,'O'],[45,35,'O'],[-85,62,'H']],[[0,1],[0,2],[0,3],[0,4],[3,5]],200,160);
+N[21]=molNode('Kupferzentrum',[[0,0,'Cu'],[-55,-30,'N'],[55,-35,'N'],[0,60,'S'],[35,-75,'S']],[[0,1],[0,2],[0,3],[0,4]],220,180);
+N[23]={f:LLhc,w:130,h:260,pa:1.5,pb:2.3};
+N[22]=molNode('Wasser (H₂O)',[[0,0,'O'],[-50,38,'H'],[50,38,'H']],[[0,1],[0,2]],160,120);
+const GA=(...a)=>[['Atome',a.map(e=>[ACOL[e],'c',EL[e][1]+' ('+e+')','Kreis im Molekül. Heranzoomen zeigt das Bohr-Modell.'])]];
+GLV[10]=[['FNR',[['#e0873c','r','FNR (Enzym)','orange Domänen. Bindet Ferredoxin und NADP⁺.'],['#ffe45c','c','FAD','gelbe Ringe, Cofaktor. Nimmt die Elektronen von Fd auf.'],['#ffb86b','c','Ferredoxin (Fd)','Kreis oben links mit Fe₂S₂-Cluster. Zoome darauf.'],['#ffe45c','c','Elektron (e⁻)','gelbe Punkte: Fd, FAD, NADP⁺.'],['#ffc78f','r','NADP⁺','unten rechts. Wird zu NADPH reduziert.']]]];
+GLV[11]=[['Blatt',[['#2f7d43','r','Blattspreite','grüne Fläche, hier trifft das Licht auf.'],['#c9e8b0','l','Mittelrippe und Adern','helle Linien: Leitbündel für Wasser und Zucker.'],['#ffe45c','r','Querschnittsmarke','gelb gestrichelt. Hier geht es ins Gewebe.'],['#ffffff','l','Licht','Zickzack-Linien.']]]];
+GLV[12]=[['Gewebe',[['#d9c27a','r','Kutikula','Wachsschicht, schützt vor Wasserverlust.'],['#9be28a','r','Epidermis','obere und untere Zellschicht, meist ohne Chloroplasten.'],['#3f8f4a','r','Palisadengewebe','lange Zellen mit vielen Chloroplasten. Hier läuft die meiste Fotosynthese.'],['#3f8f4a','c','Schwammgewebe','runde Zellen mit Luftzwischenräumen für den Gasaustausch.'],['#5fb0e0','c','Leitbündel','Xylem (blau) und Phloem (orange), von Scheidenzellen umgeben.'],['#4aa65a','c','Spaltöffnung','Schließzellen in der unteren Epidermis.']]]];
+GLV[13]=[['Mesophyllzelle',[['#c9e8a0','r','Zellwand','Zellulose, gibt der Zelle Form.'],['#9fe6ff','r','Vakuole','große Mitte, speichert Wasser.'],['#8a6fd2','c','Zellkern','enthält die DNA.'],['#e0873c','c','Mitochondrium','Zellatmung.'],['#3f9b5a','c','Chloroplasten','grüne Ellipsen am Rand. Zoome auf einen.']]]];
+GLV[14]=[['Spaltöffnung',[['#4aa65a','r','Schließzellen','bohnenförmig, mit Chloroplasten. Öffnen den Spalt bei Licht.'],['#9fe6ff','c','CO₂','blaue Punkte, strömen hinein.'],['#e6f2e8','c','O₂ und H₂O','weiße Punkte, strömen hinaus.'],['#d9c27a','r','Kutikula','Wachsschicht an der Außenseite.']]]];
+GLV[15]=[['Leitbündel',[['#5fb0e0','c','Xylem','blaue Gefäße mit verholzter Wand. Wasser und Mineralstoffe nach oben.'],['#f0b060','r','Siebröhren (Phloem)','orange, transportieren Zucker aus dem Blatt.'],['#c9702a','c','Geleitzellen','versorgen die Siebröhren.'],['#3f8f4a','c','Bündelscheide','grüner Zellring um das Bündel.']]]];
+GLV[16]=GA('C','O');GLV[17]=GA('Mn','Ca','O');GLV[18]=GA('Fe','N','C');GLV[19]=GA('Fe','S','C');GLV[20]=GA('P','O','H');GLV[21]=GA('Cu','N','S');GLV[22]=GA('O','H');
+LV.push(['FNR (NADP⁺-Reduktase)','Das Enzym nimmt Elektronen von Ferredoxin über FAD auf und reduziert NADP⁺ zu NADPH. Ferredoxin trägt einen Fe₂S₂-Cluster. Zoome darauf.'],
+['Blatt','Die Blattspreite mit Mittelrippe und Adern ist das Organ der Fotosynthese. Zoome auf den gelben Querschnitt.'],
+['Blattquerschnitt','Kutikula, Epidermis, Palisaden- und Schwammgewebe mit Luftraum, Leitbündel und Spaltöffnung. Zoome auf eine Palisadenzelle, das Leitbündel oder die Spaltöffnung.'],
+['Mesophyllzelle','Palisadenzelle mit Zellwand, Vakuole, Zellkern, Mitochondrium und vielen Chloroplasten. Zoome auf einen Chloroplasten.'],
+['Spaltöffnung (Stoma)','Zwei Schließzellen regulieren den Spalt: CO₂ strömt ein, O₂ und Wasserdampf strömen aus. Bei Licht öffnet er sich weiter.'],
+['Leitbündel','Xylem bringt Wasser und Mineralstoffe ins Blatt, Phloem exportiert Zucker. Die Bündelscheide umgibt beide.'],
+['Lipidmolekül (Galaktolipid)','Thylakoidmembranen bestehen vor allem aus Galaktolipiden: Zuckerkopf, Glycerin-Gerüst, zwei Fettsäureschwänze (gekürzt, ohne H). Zoome auf ein Atom.'],
+['Mn₄CaO₅-Cluster','Der wasserspaltende Komplex aus vier Mn, einem Ca und fünf O. Mn wechselt die Oxidationsstufe und speichert so die Elektronen aus H₂O.'],
+['Häm (Eisen)','Porphyrinring mit Eisen im Zentrum, Elektronenüberträger im Cyt b₆f. Fe wechselt zwischen Fe²⁺ und Fe³⁺.'],
+['Fe₂S₂-Cluster','Zwei Eisen und zwei Schwefel, über Cysteine am Ferredoxin verankert. Nimmt das Elektron von PS I auf und gibt es an die FNR weiter.'],
+['Phosphat (Pᵢ)','Anorganisches Phosphat. Die ATP-Synthase knüpft es an ADP: ADP + Pᵢ → ATP.'],
+['Kupferzentrum (Plastocyanin)','Cu wechselt zwischen Cu⁺ und Cu²⁺ und bringt das Elektron vom Cyt b₆f zu PS I.'],
+['Wasser (H₂O)','Das Substrat der Fotolyse: 2 H₂O → O₂ + 4 H⁺ + 4 e⁻.']);
+LV[23]=['Lichtsammelkomplex (LHC)','Chlorophyll a/b und Carotinoide sitzen in Proteinhelices. Sie fangen Licht ein und leiten die Anregungsenergie zum Reaktionszentrum.'];
+LV[24]=['Schwammparenchymzelle','Rundliche Zelle mit Zellwand, Vakuole, Zellkern und weniger Chloroplasten als im Palisadengewebe. Zwischen den Zellen liegen Lufträume. Zoome auf einen Chloroplasten.'];
+GLV[23]=[['LHC',[['#3f8f4a','r','LHC-Protein','grünes Gehäuse mit Helices.'],['#7fd08a','c','Chlorophyll','grüne Kreise, absorbieren Licht.'],['#e0873c','c','Carotinoide','orange Kreise, Zusatzpigment und Schutz.']]]];
+GLV[24]=[['Schwammparenchymzelle',[['#c9e8a0','r','Zellwand','Zellulose, gibt der Zelle Form.'],['#9fe6ff','r','Vakuole','speichert Wasser.'],['#8a6fd2','c','Zellkern','enthält die DNA.'],['#3f9b5a','c','Chloroplasten','grüne Ellipsen am Rand. Zoome auf einen.']]]];
+[11,12,14,15,13,24,0,1,2,16,3,4,17,22,5,18,6,21,7,20,10,19,8,9].forEach(i=>{const b=document.createElement('button');b.textContent=LV[i][0].replace('-Komplex','');b.dataset.i=i;b.onclick=()=>go(i);chips.appendChild(b)});
+
+const PL=[],PR={0:13,1:0,2:1,3:2,4:3,5:3,6:3,7:3,8:4,9:8,10:3,11:-1,12:11,13:12,14:12,15:12,16:2,17:4,18:5,19:10,20:7,21:6,22:4,23:3,24:12};
+function place(id){if(PL[id])return PL[id];const P=[];for(let i=id;i>=0;i=PR[i])P.unshift(i);let o={x:0,y:0,sc:1,f:1};
+ for(let i=1;i<P.length;i++){const c=N[P[i-1]].k.filter(c=>c[0]==P[i]&&((c[4]||1)>0||N[P[i-1]].k.every(d=>d[0]!=P[i]||(d[4]||1)<0))).sort((a,b)=>a[1]*a[1]+a[2]*a[2]-b[1]*b[1]-b[2]*b[2])[0];o={x:o.x+o.sc*c[1],y:o.y+o.sc*o.f*c[2],sc:o.sc*c[3],f:o.f*(c[4]||1)}}return PL[id]=o}
 function go(id){const p=place(id),z1=N[id].u/p.sc;tw={z0:Z,x0:camx,y0:camy,x1:p.x,y1:p.y,z1,t:0,D:clamp(1.2+Math.abs(Math.log(z1/Z))*.4,1.2,4.5)}}
 function layout(){const tb=$('top').getBoundingClientRect().bottom,bb=$('bot').getBoundingClientRect().top,ah=Math.max(120,bb-tb-30);CY=(tb+bb)/2;
- N.forEach(n=>n.u=Math.min(W*.96/(n.fw||n.w),ah/n.h));Zmin=N[0].u*.85;Zmax=N[8].u/place(8).sc*1.5}
+ N.forEach(n=>n.u=Math.min(W*.96/(n.fw||n.w),ah/(n.fh||n.h)));Zmin=N[11].u*.85;Zmax=Math.max(...N.map((n,i)=>n.u/place(i).sc))*1.5}
 const on=(c,ox,oy,sc)=>{const px=(ox-camx)*Z+W/2,py=(oy-camy)*Z+CY,r=Math.hypot(c.w,c.h)/2*Z*sc;return px+r>0&&px-r<W&&py+r>0&&py-r<H};
-const fade=q=>clamp((q-.3)/.4,0,1);
-function node(id,ox,oy,sc,dp,par,f){
+const FD=(nd,q,qp)=>nd.pa!=null?clamp((qp-nd.pa)/(nd.pb-nd.pa),0,1):clamp((q-.3)/.4,0,1);
+const inf=(n,X,Y,s)=>n.rad?clamp((n.rad-Math.hypot(camx-X,camy-Y)/s)/(n.rad*.25),0,1):1;
+function node(id,ox,oy,sc,dp,par,f,qp,ax){
  const n=N[id],k=Z*sc,sx=(ox-camx)*Z+W/2,sy=(oy-camy)*Z+CY;
- if(!on(n,ox,oy,sc))return;const q=k/n.u;if(dp&&q<.3)return;
- const ai=dp?fade(q):1;let cov=0,cb=0;const cs=[];
- for(const c of n.k||[]){const X=ox+sc*c[1],Y=oy+sc*f*c[2],s2=sc*c[3];if(on(N[c[0]],X,Y,s2)){const qc=Z*s2/N[c[0]].u;cov=Math.max(cov,fade(qc));cb=Math.max(cb,clamp((qc-1.6)/1.4,0,1));cs.push([c[0],X,Y,s2,f*(c[4]||1)])}}
- const a=ai*(1-cov),me={id,ox,oy,sc,up:par};
- const ab=ai*(1-cb);if(a>.01||(n.bd&&ab>.01)){x.setTransform(DPR*k,0,0,DPR*k*f,DPR*sx,DPR*sy);cu=k;fl=f;lab=Math.abs(sy-CY)<280*k;if(n.bd&&ab>.01){x.globalAlpha=ab;n.bd()}if(a>.01){x.globalAlpha=a;n.f()}x.globalAlpha=1}
+ if(!on(n,ox,oy,sc))return;const q=k/n.u,ai=dp?FD(n,q,qp)*inf(n,ox,oy,sc):1;if(dp&&ai<=0)return;
+ let cov=0,cb=0;const cs=[];
+ for(const c of n.k||[]){const X=ox+sc*c[1],Y=oy+sc*f*c[2],s2=sc*c[3],cn=N[c[0]];if(on(cn,X,Y,s2)){const qc=Z*s2/cn.u;cov=Math.max(cov,FD(cn,qc,q)*inf(cn,X,Y,s2));cb=Math.max(cb,clamp((qc-1.6)/1.4,0,1));cs.push([c[0],X,Y,s2,f*(c[4]||1),c[5]])}}
+ if(n.bf)cb=clamp((q-n.bf[0])/(n.bf[1]-n.bf[0]),0,1);
+ const a=ai*(1-cov),me={id,ox,oy,sc,up:par},ab=ai*(1-cb);
+ if(a>.25){VIS[id]=1;for(const c of cs)VCH[c[0]]=1}
+ if(ax)AX=ax;
+ if(a>.01||(n.bd&&ab>.01)){x.setTransform(DPR*k,0,0,DPR*k*f,DPR*sx,DPR*sy);cu=k;fl=f;lab=Math.abs(sy-CY)<280*k;if(n.bd&&ab>.01){x.globalAlpha=ab;n.bd()}if(a>.01){x.globalAlpha=a;n.f()}x.globalAlpha=1}
  const ds=Math.hypot(sx-W/2,sy-CY);
  if(a>.5&&q>.5&&(!best||dp>best.dp||(dp==best.dp&&ds<best.ds)))best={id,dp,ds,box:par?(par.up||par):me};
- for(const c of cs)node(c[0],c[1],c[2],c[3],dp+1,me,c[4])}
-function fr(n){const t=n/1000,dt=Math.min(.05,t-lt||.016);lt=t;layout();if(!Z)Z=N[0].u;
+ for(const c of cs)node(c[0],c[1],c[2],c[3],dp+1,me,c[4],q,c[5])}
+function fr(n){const t=n/1000,dt=Math.min(.05,t-lt||.016);lt=t;dtG=dt;FRM++;layout();if(!Z)Z=N[11].u;
  if(tw){tw.t+=dt/tw.D;const f=tw.t>=1?1:tw.t*tw.t*(3-2*tw.t);Z=tw.z0*Math.pow(tw.z1/tw.z0,f);
   const p=Math.abs(tw.z1/tw.z0-1)<1e-3?f:(1-tw.z0/Z)/(1-tw.z0/tw.z1);camx=tw.x0+(tw.x1-tw.x0)*p;camy=tw.y0+(tw.y1-tw.y0)*p;if(tw.t>=1)tw=null}
- else if(best){const b=best.box,m=N[b.id];camx=clamp(camx,b.ox-m.w/2*b.sc,b.ox+m.w/2*b.sc);camy=clamp(camy,b.oy-m.h/2*b.sc,b.oy+m.h/2*b.sc)}
+ else if(best&&!pt.size){const b=best.box,m=N[b.id],hw=m.w*.75*b.sc,hh=m.h*.75*b.sc,kk=1-Math.exp(-dt*5);camx+=(clamp(camx,b.ox-hw,b.ox+hw)-camx)*kk;camy+=(clamp(camy,b.oy-hh,b.oy+hh)-camy)*kk}
  Z=clamp(Z,Zmin,Zmax);if(document.activeElement!==zs)zs.value=Math.log(Z/Zmin)/Math.log(Zmax/Zmin);
  sim(dt);
  x.setTransform(1,0,0,1,0,0);x.clearRect(0,0,cv.width,cv.height);x.setTransform(DPR,0,0,DPR,0,0);
- best=null;node(0,0,0,1,0,null,1);
- if(best&&best.id!=cl){cl=best.id;$('lv').textContent=LV[cl][0];$('cap').textContent=LV[cl][1];[...chips.children].forEach((b,i)=>b.classList.toggle('on',i==cl));renderGL()}
+ best=null;VIS={};VCH={};node(11,0,0,1,0,null,1,1);
+ if(best&&best.id!=cl){cl=best.id;$('lv').textContent=LV[cl][0];$('cap').textContent=LV[cl][1];[...chips.children].forEach((b,i)=>b.classList.toggle('on',+b.dataset.i==cl))}
+ const key=Object.keys(VIS).join()+'|'+Object.keys(VCH).join();if(key!=gKey){gKey=key;renderGL()}
  [['m0',M.H],['m1',M.atp],['m2',M.jl],['m3',M.jl]].forEach(a=>$(a[0]).style.width=clamp(a[1]*100,0,100)+'%');
  requestAnimationFrame(fr)}
 requestAnimationFrame(fr);
